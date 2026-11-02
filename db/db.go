@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 type DB struct {
@@ -470,7 +470,7 @@ func (db *DB) DeleteSmartPlug(id int64) error {
 	return affected(db.conn.Exec(`DELETE FROM smart_plugs WHERE id = ?`, id))
 }
 
-// Cameras — printspy-cam devices, managed independently of printers, optionally assigned to one.
+// Cameras — HTTP or RTSP devices, managed independently of printers, optionally assigned to one.
 
 const cameraSelect = `
 	SELECT c.id, c.printer_id, c.url, c.name, COALESCE(p.name, '')
@@ -873,7 +873,7 @@ func (db *DB) DeleteFileMetaCache(printerID int64, path string) error {
 }
 
 // PruneFileMetaCache removes cached rows for files no longer present in a
-// printer's current, complete file listing - catches deletions PrintSpy
+// printer's current, complete file listing - catches deletions PrintWatcher
 // doesn't see directly (touchscreen, USB). Only call this with a genuinely
 // unlimited listing; a truncated one would wrongly look like everything
 // else is gone.

@@ -14,16 +14,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/ingest"
-	"github.com/ccmpbll/printspy/models"
-	"github.com/ccmpbll/printspy/mqttplug"
-	"github.com/ccmpbll/printspy/netguard"
-	"github.com/ccmpbll/printspy/notify"
-	"github.com/ccmpbll/printspy/plugin"
-	"github.com/ccmpbll/printspy/plugin/prusalink"
-	"github.com/ccmpbll/printspy/printmeta"
-	"github.com/ccmpbll/printspy/smartplug"
+	"github.com/jbat66/PrintWatcher/camera"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/ingest"
+	"github.com/jbat66/PrintWatcher/models"
+	"github.com/jbat66/PrintWatcher/mqttplug"
+	"github.com/jbat66/PrintWatcher/netguard"
+	"github.com/jbat66/PrintWatcher/notify"
+	"github.com/jbat66/PrintWatcher/plugin"
+	"github.com/jbat66/PrintWatcher/plugin/prusalink"
+	"github.com/jbat66/PrintWatcher/printmeta"
+	"github.com/jbat66/PrintWatcher/smartplug"
 )
 
 type polledPrinter struct {
@@ -495,8 +496,8 @@ func (p *Poller) GetRecentFiles(ctx context.Context, id int64, limit int) ([]mod
 }
 
 // backfillFileMeta fills in tools/thumbnail data (see file_meta_cache) for
-// files PrintSpy never personally uploaded - USB, direct slicer connection.
-// PrusaLink-only (MetadataDownloader) - files uploaded through PrintSpy are
+// files PrintWatcher never personally uploaded - USB, direct slicer connection.
+// PrusaLink-only (MetadataDownloader) - files uploaded through PrintWatcher are
 // already cached at upload time (see cacheFileMetaFromBytes), and print
 // completions cache themselves too (see trackPrintHistory), so this only
 // ever does real work for files that reached the printer some other way.
@@ -872,6 +873,12 @@ func (p *Poller) captureCameraOrThumbnail(ctx context.Context, id int64, urlOver
 	snapshotURL := ""
 	usingCamera := false
 	if cam, err := p.db.GetCameraForPrinter(id); err == nil {
+		if camera.IsRTSP(cam.URL) {
+			if data, err := camera.Snapshot(ctx, cam.URL); err == nil {
+				return data, "image/jpeg", nil
+			}
+			return p.captureThumbnail(ctx, id, urlOverride)
+		}
 		snapshotURL = strings.TrimRight(cam.URL, "/") + "/snapshot"
 		usingCamera = true
 	} else {
@@ -1121,11 +1128,11 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 	// prev == nil is the very first poll for this printer since the poller
 	// started (not just "was offline" - a printer legitimately offline
 	// between polls still has a cached prev). If it's already printing at
-	// that moment, printspy just started watching an in-progress print, not
+	// that moment, printwatcher just started watching an in-progress print, not
 	// witnessing one begin - seed checkpoint state from current progress
 	// instead of running the normal checks, so a restart mid-print doesn't
 	// fire a spurious "Print Started" or re-fire a checkpoint that already
-	// passed before printspy came back up.
+	// passed before printwatcher came back up.
 	if prev == nil && status.State == models.StatePrinting {
 		p.seedPrintingState(id, status)
 	} else {
@@ -1173,7 +1180,7 @@ func (p *Poller) publishMQTTState(ctx context.Context, id int64, prevState model
 	}
 	topicTmpl, _ := p.db.GetSetting("mqtt_publish_topic")
 	if topicTmpl == "" {
-		topicTmpl = "printspy/printer/{id}/state"
+		topicTmpl = "printwatcher/printer/{id}/state"
 	}
 	topic := applyPlaceholders(topicTmpl, map[string]string{
 		"id": strconv.FormatInt(id, 10), "name": printer.Name,
@@ -1351,7 +1358,7 @@ func (p *Poller) notifySettingPercent(key string, def float64) float64 {
 // seedPrintingState runs once, on the very first poll after a restart,
 // when a printer's discovered already mid-print. Marks any checkpoint
 // whose threshold the print has already passed as fired, so it won't
-// notify for progress that happened before printspy came back up - a
+// notify for progress that happened before printwatcher came back up - a
 // checkpoint whose threshold hasn't been reached yet is left alone and
 // fires normally once actually crossed.
 func (p *Poller) seedPrintingState(id int64, status *models.PrinterStatus) {

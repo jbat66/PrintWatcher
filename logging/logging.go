@@ -1,5 +1,5 @@
 // Package logging wires slog's default logger to stdout (so debug output
-// shows up in `docker logs -f printspy`, same as every other log line) with
+// shows up in `docker logs -f printwatcher`, same as every other log line) with
 // a level that can be flipped at runtime via SetDebug - no restart needed.
 // Existing log.Printf call sites are untouched; this only governs the new
 // slog.Debug lines added alongside them for verbose tracing.

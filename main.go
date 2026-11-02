@@ -14,14 +14,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ccmpbll/printspy/api"
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/ingest"
-	"github.com/ccmpbll/printspy/logging"
-	"github.com/ccmpbll/printspy/poller"
+	"github.com/jbat66/PrintWatcher/api"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/ingest"
+	"github.com/jbat66/PrintWatcher/logging"
+	"github.com/jbat66/PrintWatcher/poller"
 
-	_ "github.com/ccmpbll/printspy/plugin/octoprint"
-	_ "github.com/ccmpbll/printspy/plugin/prusalink"
+	_ "github.com/jbat66/PrintWatcher/plugin/octoprint"
+	_ "github.com/jbat66/PrintWatcher/plugin/prusalink"
 )
 
 var version = "dev"
@@ -30,12 +30,12 @@ func main() {
 	port := 8080
 	dataDir := "/data"
 
-	if envPort := os.Getenv("PRINTSPY_PORT"); envPort != "" {
+	if envPort := os.Getenv("PRINTWATCHER_PORT"); envPort != "" {
 		if p, err := strconv.Atoi(envPort); err == nil && p > 0 {
 			port = p
 		}
 	}
-	if envDataDir := os.Getenv("PRINTSPY_DATA_DIR"); envDataDir != "" {
+	if envDataDir := os.Getenv("PRINTWATCHER_DATA_DIR"); envDataDir != "" {
 		dataDir = envDataDir
 	}
 
@@ -43,7 +43,7 @@ func main() {
 		log.Fatalf("failed to create data directory: %v", err)
 	}
 
-	dbPath := filepath.Join(dataDir, "printspy.db")
+	dbPath := filepath.Join(dataDir, "printwatcher.db")
 	database, err := db.Open(dbPath)
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
@@ -128,7 +128,7 @@ func main() {
 		p.Wait()
 	}()
 
-	log.Printf("PrintSpy starting on http://0.0.0.0%s", addr)
+	log.Printf("PrintWatcher starting on http://0.0.0.0%s", addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)
 	}
@@ -182,7 +182,7 @@ func nosniff(next http.Handler) http.Handler {
 func findWebDir() string {
 	candidates := []string{
 		"web",
-		"/usr/local/share/printspy/web",
+		"/usr/local/share/printwatcher/web",
 	}
 	for _, dir := range candidates {
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {

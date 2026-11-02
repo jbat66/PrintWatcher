@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccmpbll/printspy/db"
+	"github.com/jbat66/PrintWatcher/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,7 +24,7 @@ const (
 	loginMaxKeys   = 10000
 	minPasswordLen = 8
 
-	sessionCookieName = "printspy_session"
+	sessionCookieName = "printwatcher_session"
 	sessionDuration   = 30 * 24 * time.Hour
 )
 
@@ -45,7 +45,7 @@ var (
 // spendPasswordCheck burns the same bcrypt time as a real check, so an
 // unknown username can't be told apart from a wrong password by latency.
 func spendPasswordCheck(password string) {
-	dummyHashOnce.Do(func() { dummyHash, _ = hashPassword("printspy-dummy") })
+	dummyHashOnce.Do(func() { dummyHash, _ = hashPassword("printwatcher-dummy") })
 	checkPassword(dummyHash, password)
 }
 
@@ -91,7 +91,7 @@ func (h *Handler) RequireAuth(next http.Handler) http.Handler {
 		// an external dashboard has no session cookie, so it must never
 		// hit this gate.
 		case "/setup", "/login", "/style.css", "/logo.png", "/api/status",
-			"/manifest.json", "/apple-touch-icon-v2.png", "/icon-192.png", "/icon-512.png":
+			"/favicon.png", "/favicon.ico", "/manifest.json", "/apple-touch-icon-v2.png", "/icon-192.png", "/icon-512.png":
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -485,8 +485,8 @@ const authPageHead = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PrintSpy</title>
-<link rel="icon" href="/logo.png">
+<title>PrintWatcher</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
 <link rel="stylesheet" href="/style.css">
 <style>
 .auth-page { display:flex; align-items:center; justify-content:center; min-height:100vh; }
@@ -499,7 +499,7 @@ const authPageHead = `<!DOCTYPE html>
 <body>
 <div class="auth-page"><div class="auth-card">
 <img class="logo" src="/logo.png" alt="">
-<h1>PrintSpy</h1>
+<h1>PrintWatcher</h1>
 <div class="auth-error" id="auth-error"></div>
 `
 
@@ -534,7 +534,7 @@ const loginPageHTML = authPageHead + `
 </form>` + authPageFoot
 
 const setupPageHTML = authPageHead + `
-<p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem">Create the first account to secure this PrintSpy instance.</p>
+<p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem">Create the first account to secure this PrintWatcher instance.</p>
 <form method="POST" action="/setup">
     <div class="form-group">
         <label for="username">Username</label>

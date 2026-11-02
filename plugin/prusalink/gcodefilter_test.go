@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ccmpbll/printspy/printmeta"
+	"github.com/jbat66/PrintWatcher/printmeta"
 )
 
 // head (thumbnail) + 300MB-equivalent body streamed lazily + footer config.

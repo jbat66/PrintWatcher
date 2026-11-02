@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/ccmpbll/printspy/plugin/octoprint" // register plugin types for plugin.Known
-	_ "github.com/ccmpbll/printspy/plugin/prusalink"
+	_ "github.com/jbat66/PrintWatcher/plugin/octoprint" // register plugin types for plugin.Known
+	_ "github.com/jbat66/PrintWatcher/plugin/prusalink"
 )
 
 func TestImportDropsChildrenOfSkippedPrintersAndUnknownTypes(t *testing.T) {

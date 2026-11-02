@@ -18,7 +18,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 type relayMeta struct {
@@ -30,13 +30,13 @@ type topicSubs struct {
 	relays map[string]relayMeta // idx -> meta
 }
 
-// availabilityTopic is printspy's own app-level liveness signal - distinct
+// availabilityTopic is printwatcher's own app-level liveness signal - distinct
 // from any per-plug/per-printer topic. One process, one liveness signal: a
 // retained per-printer state topic looks identical whether the printer is
-// fine or printspy itself crashed, unless something says "printspy is up"
+// fine or printwatcher itself crashed, unless something says "printwatcher is up"
 // separately. Broker-enforced via LWT (see Configure), so it flips to
 // offline even on a hard crash, not just a graceful shutdown.
-const availabilityTopic = "printspy/availability"
+const availabilityTopic = "printwatcher/availability"
 
 // Client is a persistent MQTT connection tracking cached power/energy state
 // for Tasmota devices, keyed by "<topic>:<idx>".
@@ -54,7 +54,7 @@ func New() *Client {
 	}
 }
 
-// clientIDSuffix identifies this process to the broker so two printspy
+// clientIDSuffix identifies this process to the broker so two printwatcher
 // instances never collide on the same MQTT ClientID (the broker evicts the
 // older session on a collision - see backlog). In Docker, hostname defaults
 // to the container ID: unique per container, stable across that container's
@@ -98,7 +98,7 @@ func redactedBroker(raw string) string {
 func probe(brokerURL, username, password string) error {
 	opts := mqtt.NewClientOptions().
 		AddBroker(brokerURL).
-		SetClientID("printspy-probe-" + clientIDSuffix()).
+		SetClientID("printwatcher-probe-" + clientIDSuffix()).
 		SetUsername(username).
 		SetPassword(password).
 		SetAutoReconnect(false).
@@ -153,7 +153,7 @@ func (c *Client) Configure(brokerURL, username, password string) error {
 
 	opts := mqtt.NewClientOptions().
 		AddBroker(brokerURL).
-		SetClientID("printspy-smartplugs-"+clientIDSuffix()).
+		SetClientID("printwatcher-smartplugs-"+clientIDSuffix()).
 		SetUsername(username).
 		SetPassword(password).
 		SetWill(availabilityTopic, "offline", 1, true).

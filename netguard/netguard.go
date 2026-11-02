@@ -1,6 +1,6 @@
 // Package netguard blocks outbound requests to loopback and link-local
 // addresses (including the 169.254.169.254 cloud metadata endpoint), so a
-// user-supplied printer URL can't turn PrintSpy's backend into an SSRF proxy.
+// user-supplied printer URL can't turn PrintWatcher's backend into an SSRF proxy.
 // RFC1918 (LAN) addresses are allowed — that's where printers live.
 package netguard
 

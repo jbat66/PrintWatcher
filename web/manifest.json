@@ -1,6 +1,6 @@
 {
-    "name": "PrintSpy",
-    "short_name": "PrintSpy",
+    "name": "PrintWatcher",
+    "short_name": "PrintWatcher",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#1a1a1a",

@@ -7,7 +7,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 func TestParseTopic(t *testing.T) {
@@ -204,7 +204,7 @@ func TestLWTOfflineMarksCacheOff(t *testing.T) {
 
 func TestPublishNotConfigured(t *testing.T) {
 	c := New()
-	if err := c.Publish(context.Background(), "printspy/printer/1/state", []byte("{}")); err == nil {
+	if err := c.Publish(context.Background(), "printwatcher/printer/1/state", []byte("{}")); err == nil {
 		t.Fatal("Publish with no configured client should error")
 	}
 }
@@ -232,12 +232,12 @@ func TestPublish(t *testing.T) {
 	c.cli = fc
 
 	payload := []byte(`{"id":1,"state":"printing"}`)
-	if err := c.Publish(context.Background(), "printspy/printer/1/state", payload); err != nil {
+	if err := c.Publish(context.Background(), "printwatcher/printer/1/state", payload); err != nil {
 		t.Fatalf("Publish returned error: %v", err)
 	}
 
-	if len(fc.published) != 1 || fc.published[0] != "printspy/printer/1/state" {
-		t.Fatalf("expected one publish to printspy/printer/1/state, got %v", fc.published)
+	if len(fc.published) != 1 || fc.published[0] != "printwatcher/printer/1/state" {
+		t.Fatalf("expected one publish to printwatcher/printer/1/state, got %v", fc.published)
 	}
 	if len(fc.retained) != 1 || !fc.retained[0] {
 		t.Fatalf("expected publish to be retained, got %v", fc.retained)

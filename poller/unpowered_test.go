@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 // unpoweredRig is a poller with one printer, optionally one assigned plug whose

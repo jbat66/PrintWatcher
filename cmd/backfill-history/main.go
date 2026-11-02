@@ -8,7 +8,7 @@
 // Built into the runtime image (see Dockerfile) - run it directly against
 // the live container:
 //
-//	docker exec printspy backfill-history
+//	docker exec printwatcher backfill-history
 package main
 
 import (
@@ -24,8 +24,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/ccmpbll/printspy/digestauth"
-	"github.com/ccmpbll/printspy/printmeta"
+	"github.com/jbat66/PrintWatcher/digestauth"
+	"github.com/jbat66/PrintWatcher/printmeta"
 )
 
 type printerRow struct {
@@ -48,7 +48,7 @@ type fileRef struct {
 }
 
 func main() {
-	dbPath := flag.String("db", "/data/printspy.db", "sqlite db path")
+	dbPath := flag.String("db", "/data/printwatcher.db", "sqlite db path")
 	flag.Parse()
 
 	db, err := sql.Open("sqlite3", *dbPath)

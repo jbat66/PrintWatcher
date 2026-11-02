@@ -58,7 +58,7 @@ type SmartPlug struct {
 	MQTTTopic   string `json:"mqtt_topic,omitempty"`
 }
 
-// Camera is a directly-configured printspy-cam device, managed independently
+// Camera is a directly-configured HTTP or RTSP camera, managed independently
 // of printers and optionally assigned to any one of them. When assigned, it
 // overrides whatever webcam a printer's own plugin would otherwise discover.
 type Camera struct {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/models"
-	"github.com/ccmpbll/printspy/poller"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/models"
+	"github.com/jbat66/PrintWatcher/poller"
 )
 
 func newTestHandler(t *testing.T) (*Handler, *db.DB) {

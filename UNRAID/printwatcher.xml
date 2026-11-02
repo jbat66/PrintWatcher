@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>PrintWatcher</Name>
+  
+  <Repository>jbat66/printwatcher:latest</Repository>
+  <Registry>https://hub.docker.com/r/jbat66/printwatcher</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <MyMAC/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jbat66/PrintWatcher/issues</Support>
+  <Project>https://github.com/jbat66/PrintWatcher</Project>
+  <ReadMe>https://github.com/jbat66/PrintWatcher/blob/main/README.md</ReadMe>
+  <Overview>Self-hosted dashboard for monitoring 3D printers from a single web interface. Connects to Prusa Printers via PrusaLink or any 3D printer that supports OctoPrint via OctoPrint, displaying real-time status, HTTP and RTSP camera feeds, temperatures, print progress, and more via Server-Sent Events.&#13;
+&#13;
+Features include a full File Manager with thumbnails and one-click reprint, print history with per-print material/filament stats, Pushover notifications, smart plug power control (Tasmota via direct HTTP or MQTT, or PSU Control), print control (pause/resume/cancel), and PrusaSlicer/OrcaSlicer print-host integration.&#13;
+&#13;
+Open the web UI, add your printers, and you're set. No config files needed.&#13;
+&#13;
+RTSP decoding uses FFmpeg, included in the image. Camera connections are outbound; no RTSP port mapping is needed.&#13;
+&#13;
+Web interface: http://Unraid_IP:8086</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8080]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/jbat66/PrintWatcher/main/UNRAID/printwatcher.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jbat66/PrintWatcher/main/web/icon-512.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web UI Port" Target="8080" Default="8086" Mode="tcp" Description="HTTP web interface port" Type="Port" Display="always" Required="true" Mask="false">8086</Config>
+  <Config Name="Config Path" Target="/data" Default="/mnt/user/appdata/printwatcher" Mode="rw" Description="Persistent storage for the PrintWatcher database, settings, and staged slicer uploads" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/printwatcher</Config>
+  <TailscaleStateDir/>
+</Container>

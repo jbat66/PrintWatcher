@@ -1,5 +1,5 @@
-# <img src="web/logo.png" alt="" width="64"> PrintSpy
-![Build Status](https://img.shields.io/github/actions/workflow/status/ccmpbll/printspy/build.yaml) ![Docker Image Size](https://img.shields.io/docker/image-size/ccmpbll/printspy/latest) ![Docker Pulls](https://img.shields.io/docker/pulls/ccmpbll/printspy.svg) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
+# <img src="web/logo.png" alt="" width="64"> PrintWatcher
+![Build Status](https://img.shields.io/github/actions/workflow/status/jbat66/PrintWatcher/build.yaml) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
 
 A self-hosted dashboard for monitoring multiple 3D printers — OctoPrint and PrusaLink — from a single web interface.
 
@@ -10,18 +10,6 @@ This was built for my own personal use and the way I want to interact with my pr
 ## What it does
 
 Each printer gets a row in the dashboard: webcam/snapshot, progress/ETA, temps, and smart plug power state/control. Updates push live via SSE. Everything's configured through the settings page — no config files, no restart needed.
-
-## Screenshots
-
-![Dashboard](docs/screenshots/printspy-dashboard.png)
-
-<details>
-<summary>File Manager &amp; Print History</summary>
-
-![File Manager](docs/screenshots/printspy-files.png)
-![Print History](docs/screenshots/printspy-history.png)
-
-</details>
 
 ## Supported platforms
 
@@ -42,7 +30,7 @@ Plugin architecture — new platforms should be straightforward to add.
 - Pushover notifications — print started/checkpoints/complete/failed/error, each independently configurable: priority, sound, image source (camera/thumbnail/none), and custom title/message templates
 - Smart plug power control via a directly-configured Tasmota device, independent of any platform plugin, assignable to any printer — HTTP-direct (default) or MQTT (push-based, opt-in per plug)
 - Auto-off after idle timeout and thermal runaway protection (second layer on top of firmware protection) for printers with an assigned smart plug
-- Camera feed via [printspy-cam](https://github.com/ccmpbll/printspy-cam) (ESP32-CAM firmware), assignable to any printer — snapshot/live/plate-thumbnail toggle buttons under each card's image, with an optional global setting to hide the whole section for a printer while it's unreachable
+- Camera feed via HTTP or RTSP cameras, assignable to any printer — snapshot/live/plate-thumbnail toggle buttons under each card's image, with an optional global setting to hide the whole section for a printer while it's unreachable
 - Multi-user login with per-account passwords, no roles/tiers
 - Config backup/restore as YAML
 - Printer reordering, optional free-text "model" field, dark mode, responsive layout
@@ -56,22 +44,25 @@ Plugin architecture — new platforms should be straightforward to add.
 
 ### PrusaLink
 
-- Snapshot only — no live stream from the printer's own camera (assign a printspy-cam for a live feed)
+- Snapshot only — no live stream from the printer's own camera (assign an HTTP or RTSP camera for a live feed)
 - No native power control over the API — use a directly-configured smart plug instead
 - Keepalive ping — keeps idle printers' wifi up; paused while the printer is off
 - File upload from the dashboard, with an optional "print immediately"
 - PrusaLink printers with an assigned smart plug are polled only once a minute while offline with every plug off
-- Slicer print-host target — point PrusaSlicer/OrcaSlicer's "Send to printer" (PrusaLink mode) at PrintSpy, pinned to one specific printer; "Upload" relays automatically once the printer's online, "Upload and Print" also powers it on first if it's off — no manual step either way
+- Slicer print-host target — point PrusaSlicer/OrcaSlicer's "Send to printer" (PrusaLink mode) at PrintWatcher, pinned to one specific printer; "Upload" relays automatically once the printer's online, "Upload and Print" also powers it on first if it's off — no manual step either way
 - Print history enriched with real per-print metadata — material, filament used/cost, layer height, duration vs. estimate, and per-tool breakdown for multi-material prints — parsed directly from the file's own slicer metadata, since none of this is exposed over PrusaLink's API
 
 ## Quick start
 
 ```bash
+git clone https://github.com/jbat66/PrintWatcher.git
+cd PrintWatcher
+docker build -t printwatcher:local .
 docker run -d \
-  --name printspy \
+  --name printwatcher \
   -p 8080:8080 \
-  -v printspy-data:/data \
-  ccmpbll/printspy:latest
+  -v printwatcher-data:/data \
+  printwatcher:local
 ```
 
 Open `http://<docker host IP>:8080` — first run prompts you to create a login. Once in, click the settings gear and add your first printer. You'll need the printer's URL and OctoPrint API key or Prusalink user/pass.
@@ -80,17 +71,23 @@ Open `http://<docker host IP>:8080` — first run prompts you to create a login.
 
 ```yaml
 services:
-  printspy:
-    image: ccmpbll/printspy:latest
+  printwatcher:
+    build: .
     ports:
       - "8080:8080"
     volumes:
-      - printspy-data:/data
+      - printwatcher-data:/data
     restart: unless-stopped
 
 volumes:
-  printspy-data:
+  printwatcher-data:
 ```
+
+### Unraid
+
+The container template is [UNRAID/printwatcher.xml](UNRAID/printwatcher.xml). It uses `jbat66/printwatcher:latest`, maps host port `8086` to container port `8080`, and stores data under `/mnt/user/appdata/printwatcher`. The template icon and update URL point to this repository. HTTP and RTSP cameras require outbound connectivity from the container; no additional incoming camera port is needed.
+
+The image must be published to Docker Hub before Unraid can pull it. The existing tag-triggered Build and Publish workflow requires the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`; pushing a release tag publishes `latest` and the tag version. A normal push to `main` runs CI without publishing an image.
 
 ## Configuration
 
@@ -112,23 +109,27 @@ Both modes can be mixed freely across plugs.
 
 ### Cameras
 
-Any printer type can get a webcam feed by assigning a [printspy-cam](https://github.com/ccmpbll/printspy-cam) device under Settings → Cameras — useful for PrusaLink, which has no webcam support of its own. Assigning a camera overrides whatever webcam a printer's own plugin would otherwise show. Cameras are managed independently of printers, so deleting a printer unassigns its camera instead of deleting it.
+Enter an HTTP camera base URL such as `http://192.168.1.50` for cameras exposing `/snapshot` and `/stream`, or a complete RTSP URL such as `rtsp://user:password@192.168.1.50:554/stream1`. URL-encode special characters in credentials. RTSP uses TCP and is decoded on the server to JPEG snapshots and browser-compatible MJPEG live video (up to 1280 pixels wide at 5 fps). Notification image attachments also support RTSP.
+
+The Docker image includes FFmpeg. For native installations, install FFmpeg and ensure `ffmpeg` is on the server process PATH. Unreachable streams time out; up to eight RTSP decoders can run concurrently across live views and snapshots. Configure RTSP camera orientation and image quality in its own web interface; the in-app camera controls apply to compatible HTTP cameras only. LAN camera addresses are supported; loopback, link-local and multicast addresses are blocked.
+
+Any printer type can get a webcam feed by assigning an HTTP camera or RTSP stream under Settings → Cameras — useful for PrusaLink, which has no webcam support of its own. Assigning a camera overrides whatever webcam a printer's own plugin would otherwise show. Cameras are managed independently of printers, so deleting a printer unassigns its camera instead of deleting it.
 
 ### Slicer print targets
 
 Create a target under Settings → Slicer print targets, pinned to one printer. In PrusaSlicer or OrcaSlicer, add a physical printer using the **PrusaLink** host type and set:
 
-- **Host:** the URL shown on the target, `http://<printspy-host>:<port>/ingest/<label>` (the target's label or numeric id both work)
+- **Host:** the URL shown on the target, `http://<printwatcher-host>:<port>/ingest/<label>` (the target's label or numeric id both work)
 - **API key / password:** the target's own API key, sent by the slicer as the `X-Api-Key` header. It is separate from your login and from the status API key, and this endpoint does not use the login session.
 
-"Upload" stages the file and relays it to the printer as soon as it is online; "Upload and Print" also powers the printer on first if needed and then starts the print. A wrong key returns `401` and an unknown label or id returns `404`. Staged files are kept under `PRINTSPY_DATA_DIR/ingest/` until they have been relayed.
+"Upload" stages the file and relays it to the printer as soon as it is online; "Upload and Print" also powers the printer on first if needed and then starts the print. A wrong key returns `401` and an unknown label or id returns `404`. Staged files are kept under `PRINTWATCHER_DATA_DIR/ingest/` until they have been relayed.
 
 ### Environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PRINTSPY_PORT` | `8080` | HTTP server port |
-| `PRINTSPY_DATA_DIR` | `/data` | Data directory: the SQLite database (`printspy.db`) plus `ingest/<job id>/` staging folders for slicer uploads that haven't been relayed to a printer yet. Mount it on persistent storage with room for a few uploaded print files. |
+| `PRINTWATCHER_PORT` | `8080` | HTTP server port |
+| `PRINTWATCHER_DATA_DIR` | `/data` | Data directory: the SQLite database (`printwatcher.db`) plus `ingest/<job id>/` staging folders for slicer uploads that haven't been relayed to a printer yet. Mount it on persistent storage with room for a few uploaded print files. |
 
 ## Getting your OctoPrint API key
 
@@ -155,7 +156,7 @@ make docker
 
 ## Contributing
 
-PrintSpy is in early development. If you'd like to contribute:
+PrintWatcher is in early development. If you'd like to contribute:
 
 - Open an issue to discuss before submitting large changes
 - Bug reports with `docker logs` output are especially helpful

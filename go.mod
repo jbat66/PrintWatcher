@@ -1,4 +1,4 @@
-module github.com/ccmpbll/printspy
+module github.com/jbat66/PrintWatcher
 
 go 1.27.0
 

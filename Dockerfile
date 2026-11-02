@@ -9,14 +9,14 @@ COPY . .
 ARG VERSION=dev
 # -mod=readonly: build exactly what the committed go.mod/go.sum describe
 # (no tidy at build time re-resolving versions go.sum never verified).
-RUN CGO_ENABLED=1 go build -mod=readonly -o printspy -ldflags="-s -w -X main.version=${VERSION}" .
+RUN CGO_ENABLED=1 go build -mod=readonly -o printwatcher -ldflags="-s -w -X main.version=${VERSION}" .
 RUN CGO_ENABLED=1 go build -mod=readonly -o backfill-history ./cmd/backfill-history
 
 FROM alpine:3.24
-RUN apk add --no-cache sqlite sqlite-libs ca-certificates
-COPY --from=builder /build/printspy /usr/local/bin/
+RUN apk add --no-cache sqlite sqlite-libs ca-certificates ffmpeg
+COPY --from=builder /build/printwatcher /usr/local/bin/
 COPY --from=builder /build/backfill-history /usr/local/bin/
-COPY --from=builder /build/web /usr/local/share/printspy/web
+COPY --from=builder /build/web /usr/local/share/printwatcher/web
 
 VOLUME /data
 EXPOSE 8080
@@ -25,6 +25,6 @@ EXPOSE 8080
 # /api/version is behind the auth gate and would always report unhealthy.
 # busybox wget exits non-zero on connection failure and non-2xx.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${PRINTSPY_PORT:-8080}/login" || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PRINTWATCHER_PORT:-8080}/login" || exit 1
 
-ENTRYPOINT ["printspy"]
+ENTRYPOINT ["printwatcher"]

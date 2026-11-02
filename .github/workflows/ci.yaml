@@ -37,4 +37,4 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build image
-        run: docker build --build-arg VERSION=ci-test -t printspy:ci-test .
+        run: docker build --build-arg VERSION=ci-test -t printwatcher:ci-test .

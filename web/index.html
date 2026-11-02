@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrintSpy</title>
-    <link rel="icon" href="/logo.png">
+    <title>PrintWatcher</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
     <link rel="stylesheet" href="/style.css">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PrintSpy">
+    <meta name="apple-mobile-web-app-title" content="PrintWatcher">
     <meta name="theme-color" content="#2563eb">
 </head>
 <body>
     <div class="container">
         <header>
-            <img src="/logo.png" alt="PrintSpy" class="header-logo">
-            <h1>PrintSpy</h1>
+            <img src="/logo.png" alt="PrintWatcher" class="header-logo">
+            <h1>PrintWatcher</h1>
             <span class="app-version" id="app-version"></span>
             <span class="printer-count" id="printer-count"></span>
             <span class="power-controls" id="power-controls" style="display:none">
@@ -201,8 +201,9 @@
                 <input type="hidden" id="camera-id" value="">
                 <div class="form-group">
                     <label for="camera-url">URL</label>
-                    <input type="url" id="camera-url" placeholder="http://printspy-cam-abcdef.local" required>
+                    <input type="url" id="camera-url" aria-describedby="camera-url-hint" placeholder="rtsp://user:password@192.168.1.50:554/stream" required>
                 </div>
+                <p class="form-hint" id="camera-url-hint">Enter an HTTP camera base URL (with /snapshot and /stream endpoints), or a complete rtsp:// stream URL. RTSP uses FFmpeg on the server.</p>
                 <div class="form-group">
                     <label for="camera-name">Name</label>
                     <input type="text" id="camera-name" placeholder="Printer">
@@ -329,8 +330,8 @@
             </div>
 
             <div class="settings-section">
-                <h3>Cameras (printspy-cam)</h3>
-                <div class="form-hint">Standalone printspy-cam device, independent of printer type. Add one, then assign it to any printer.</div>
+                <h3>CAMERAS (HTTP OR RTSP)</h3>
+                <div class="form-hint">HTTP camera or RTSP stream, independent of printer type. Add one, then assign it to any printer.</div>
                 <div id="settings-camera-list" style="margin-top:0.5rem"></div>
                 <button class="btn btn-primary" onclick="closeModal();openAddCameraModal()" style="margin-top:0.75rem">+ Add camera</button>
             </div>
@@ -402,7 +403,7 @@
                             <input type="checkbox" id="setting-debug-logging" style="width:auto">
                             Enable debug logging
                         </label>
-                        <div class="form-hint">Verbose tracing for polling, MQTT, smart plugs, and API requests - view with <code>docker logs -f printspy</code>. Takes effect immediately, no restart needed. Leave off unless actively troubleshooting.</div>
+                        <div class="form-hint">Verbose tracing for polling, MQTT, smart plugs, and API requests - view with <code>docker logs -f printwatcher</code>. Takes effect immediately, no restart needed. Leave off unless actively troubleshooting.</div>
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Save</button>
@@ -507,7 +508,7 @@
                     </div>
                     <div class="form-group">
                         <label for="setting-mqtt-publish-topic">Publish topic</label>
-                        <input type="text" id="setting-mqtt-publish-topic" placeholder="printspy/printer/{id}/state">
+                        <input type="text" id="setting-mqtt-publish-topic" placeholder="printwatcher/printer/{id}/state">
                         <div class="form-hint">Use <code>{id}</code> and <code>{name}</code> as placeholders.</div>
                     </div>
                     <div class="form-actions">

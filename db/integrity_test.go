@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 func openTest(t *testing.T) *DB {

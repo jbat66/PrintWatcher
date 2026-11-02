@@ -1,7 +1,7 @@
 .PHONY: build run docker clean
 
 build:
-	CGO_ENABLED=1 go build -o printspy -ldflags="-s -w -X main.version=dev" .
+	CGO_ENABLED=1 go build -o printwatcher -ldflags="-s -w -X main.version=dev" .
 
 run:
 	go run .
@@ -16,4 +16,4 @@ down:
 	docker compose down
 
 clean:
-	rm -f printspy
+	rm -f printwatcher

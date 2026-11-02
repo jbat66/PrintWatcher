@@ -3,7 +3,7 @@ package db
 import (
 	"testing"
 
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 // Regression: History's thumbnail is its own copy on the row, looked up by

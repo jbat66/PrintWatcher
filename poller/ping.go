@@ -31,7 +31,7 @@ func pingHost(host string, timeout time.Duration) error {
 		Body: &icmp.Echo{
 			ID:   os.Getpid() & 0xffff,
 			Seq:  1,
-			Data: []byte("printspy-keepalive"),
+			Data: []byte("printwatcher-keepalive"),
 		},
 	}
 	wb, err := msg.Marshal(nil)

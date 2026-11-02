@@ -1,6 +1,6 @@
 // Package printmeta extracts the print metadata (material, filament used,
 // layer height, estimated time, etc) that PrusaLink's own HTTP API never
-// exposes but that both .gcode and .bgcode files carry themselves - PrintSpy
+// exposes but that both .gcode and .bgcode files carry themselves - PrintWatcher
 // downloads the file directly and parses it once, at print completion.
 package printmeta
 

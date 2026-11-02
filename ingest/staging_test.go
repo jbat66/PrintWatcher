@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/ccmpbll/printspy/db"
+	"github.com/jbat66/PrintWatcher/db"
 )
 
 func TestRemoveStagedOnlyTouchesJobDirs(t *testing.T) {

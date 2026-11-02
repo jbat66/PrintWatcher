@@ -1,6 +1,9 @@
-printspy
+printwatcher
 *.db
 /data/
 config.yaml
 .devdata/
 .DS_Store
+
+.tools/
+*.exe

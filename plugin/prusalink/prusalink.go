@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccmpbll/printspy/digestauth"
-	"github.com/ccmpbll/printspy/models"
-	"github.com/ccmpbll/printspy/netguard"
-	"github.com/ccmpbll/printspy/plugin"
+	"github.com/jbat66/PrintWatcher/digestauth"
+	"github.com/jbat66/PrintWatcher/models"
+	"github.com/jbat66/PrintWatcher/netguard"
+	"github.com/jbat66/PrintWatcher/plugin"
 )
 
 func init() {

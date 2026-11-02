@@ -18,15 +18,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/ingest"
-	"github.com/ccmpbll/printspy/logging"
-	"github.com/ccmpbll/printspy/models"
-	"github.com/ccmpbll/printspy/mqttplug"
-	"github.com/ccmpbll/printspy/netguard"
-	"github.com/ccmpbll/printspy/notify"
-	"github.com/ccmpbll/printspy/plugin"
-	"github.com/ccmpbll/printspy/poller"
+	"github.com/jbat66/PrintWatcher/camera"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/ingest"
+	"github.com/jbat66/PrintWatcher/logging"
+	"github.com/jbat66/PrintWatcher/models"
+	"github.com/jbat66/PrintWatcher/mqttplug"
+	"github.com/jbat66/PrintWatcher/netguard"
+	"github.com/jbat66/PrintWatcher/notify"
+	"github.com/jbat66/PrintWatcher/plugin"
+	"github.com/jbat66/PrintWatcher/poller"
 	"gopkg.in/yaml.v3"
 )
 
@@ -645,7 +646,7 @@ func (h *Handler) handleNotifyTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := notify.Message{Title: "PrintSpy test", Text: "This is a test notification from PrintSpy."}
+	msg := notify.Message{Title: "PrintWatcher test", Text: "This is a test notification from PrintWatcher."}
 	if err := notify.Send(token, userKey, msg); err != nil {
 		jsonResponse(w, map[string]any{"success": false, "error": err.Error()})
 		return
@@ -917,7 +918,7 @@ func (h *Handler) hasCameraAssigned(printerID int64) bool {
 	return err == nil
 }
 
-// Cameras — printspy-cam devices, managed independently of printers, optionally assigned to one.
+// Cameras — HTTP or RTSP devices, managed independently of printers, optionally assigned to one.
 
 func (h *Handler) handleCameras(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -935,8 +936,8 @@ func (h *Handler) handleCameras(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		if req.URL == "" {
-			jsonError(w, "url is required", http.StatusBadRequest)
+		if err := camera.ValidateURL(req.URL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		id, err := h.db.CreateCamera(req.URL, req.Name, req.PrinterID)
@@ -986,8 +987,8 @@ func (h *Handler) handleCameraByID(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-		if req.URL == "" {
-			jsonError(w, "url is required", http.StatusBadRequest)
+		if err := camera.ValidateURL(req.URL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		existing, _ := h.db.GetCamera(id)
@@ -1022,11 +1023,15 @@ func (h *Handler) handleCameraByID(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleCameraSettings proxies image-orientation settings straight through to
-// the printspy-cam device itself - no auth, no digest logic, it has none.
+// the HTTP camera device itself - no auth, no digest logic, it has none.
 func (h *Handler) handleCameraSettings(w http.ResponseWriter, r *http.Request, id int64) {
 	cam, err := h.db.GetCamera(id)
 	if err != nil {
 		jsonError(w, "camera not found", http.StatusNotFound)
+		return
+	}
+	if camera.IsRTSP(cam.URL) {
+		jsonError(w, "RTSP camera settings are managed on the camera itself", http.StatusNotImplemented)
 		return
 	}
 	base := strings.TrimRight(cam.URL, "/") + "/api/settings"
@@ -1048,7 +1053,7 @@ func (h *Handler) handleCameraSettings(w http.ResponseWriter, r *http.Request, i
 		io.Copy(w, resp.Body)
 
 	case http.MethodPut:
-		// Pure passthrough - printspy-cam's own firmware already validates
+		// Pure passthrough - HTTP camera's own firmware already validates
 		// and ignores anything it doesn't recognize, so there's nothing for
 		// this proxy to decode or re-encode.
 		req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, base, r.Body)
@@ -1449,7 +1454,7 @@ func (h *Handler) handleConfigExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/x-yaml")
-	w.Header().Set("Content-Disposition", "attachment; filename=printspy-config.yaml")
+	w.Header().Set("Content-Disposition", "attachment; filename=printwatcher-config.yaml")
 	yaml.NewEncoder(w).Encode(export)
 }
 
@@ -1601,6 +1606,10 @@ func (h *Handler) handleConfigImport(w http.ResponseWriter, r *http.Request) {
 			skipped = append(skipped, fmt.Sprintf("camera %q: its printer was not imported", c.Name))
 			continue
 		}
+		if err := camera.ValidateURL(c.URL); err != nil {
+			skipped = append(skipped, fmt.Sprintf("camera %q: %v", c.Name, err))
+			continue
+		}
 		if _, err := h.db.CreateCamera(c.URL, c.Name, resolvePrinterID(c.PrinterIndex)); err != nil {
 			skipped = append(skipped, fmt.Sprintf("camera %q: %v", c.Name, err))
 		} else {
@@ -1651,6 +1660,10 @@ func (h *Handler) handleWebcamProxy(w http.ResponseWriter, r *http.Request) {
 	webcamURL := ""
 	usingCamera := false
 	if cam, err := h.db.GetCameraForPrinter(id); err == nil {
+		if camera.IsRTSP(cam.URL) {
+			h.serveRTSP(w, r, cam.URL, false)
+			return
+		}
 		webcamURL = strings.TrimRight(cam.URL, "/") + "/stream"
 		usingCamera = true
 	} else {
@@ -1726,6 +1739,10 @@ func (h *Handler) handleSnapshotProxy(w http.ResponseWriter, r *http.Request) {
 	snapshotURL := ""
 	usingCamera := false
 	if cam, err := h.db.GetCameraForPrinter(id); err == nil {
+		if camera.IsRTSP(cam.URL) {
+			h.serveRTSP(w, r, cam.URL, true)
+			return
+		}
 		snapshotURL = strings.TrimRight(cam.URL, "/") + "/snapshot"
 		usingCamera = true
 	} else {
@@ -1912,7 +1929,7 @@ func (h *Handler) handleFileThumbnailProxy(w http.ResponseWriter, r *http.Reques
 // safeImageType passes through image content types (and the MJPEG multipart
 // type) from an upstream printer/camera and downgrades anything else to
 // octet-stream, so a malicious or compromised device can't get HTML or
-// script served from PrintSpy's own origin. SVG is excluded because it can
+// script served from PrintWatcher's own origin. SVG is excluded because it can
 // carry script when opened directly.
 func safeImageType(ct string) string {
 	mt, _, err := mime.ParseMediaType(ct)

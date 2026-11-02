@@ -2,7 +2,10 @@
 .github
 .devdata
 .DS_Store
-/printspy
+/printwatcher
 *.db
 /data
 config.yaml
+
+.tools/
+*.exe

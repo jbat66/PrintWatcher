@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/models"
-	"github.com/ccmpbll/printspy/plugin"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/models"
+	"github.com/jbat66/PrintWatcher/plugin"
 )
 
 // scriptedPlugin replays a fixed sequence of poll results.

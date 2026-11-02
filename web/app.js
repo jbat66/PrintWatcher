@@ -523,7 +523,13 @@ function refreshSnapshots() {
         const id = img.closest('[data-printer-id]')?.dataset.printerId;
         if (!id) return;
         const mode = getWebcamMode(parseInt(id));
-        if (mode === 'live') return;
+        if (mode === 'live') {
+            // Reconnect an assigned camera after a failed live stream.
+            if (img.style.display === 'none' && img.dataset.hasCamera === 'true') {
+                img.src = `/api/webcam/${id}?t=${pollCounter}`;
+            }
+            return;
+        }
         // A hidden (errored) img only gets retried when a real camera is
         // assigned - a camera-less printer's img has nothing to reconnect
         // to, it's just sitting there permanently failed by design. Plate
@@ -743,13 +749,13 @@ function renderPrinterCard(printer) {
     // disconnected card - see webcamError()).
     const tryThumb = state === 'idle' || isPrinting;
     // Live streaming needs either a plugin-reported webcam stream URL or an
-    // assigned printspy-cam (snapshot-only plugins like PrusaLink report no
+    // assigned camera (snapshot-only plugins like PrusaLink report no
     // webcam URL of their own).
     const supportsLive = printer.has_webcam || printer.has_camera;
     let wcMode = getWebcamMode(cfg.id);
     if (wcMode === 'live' && !supportsLive) wcMode = 'snapshot';
     const isPlate = wcMode === 'plate';
-    // An assigned printspy-cam is a separate device, independent of the
+    // An assigned camera is a separate device, independent of the
     // printer's own connectivity - still worth attempting even when the
     // printer itself is offline. Without one, this column's own
     // print-thumbnail fallback (see webcamError()) is what fills the camera
@@ -929,7 +935,7 @@ function updateCard(card, printer) {
     const wasThumbEligible = prevState === 'idle' || wasPrinting;
     const isThumbEligible = state === 'idle' || isPrinting;
 
-    // An assigned printspy-cam's camAttempt is always true regardless of
+    // An assigned camera's camAttempt is always true regardless of
     // printer state (see renderPrinterCard), so the offline/online boundary
     // never actually changes anything about its webcam element - forcing a
     // full rebuild here would only tear down and reconnect an already-fine
@@ -1400,7 +1406,7 @@ async function deleteIngestKey(id) {
     } catch (e) { netFail('Failed to delete ingest key.'); }
 }
 
-// Cameras (printspy-cam, managed independently of printers)
+// Cameras (HTTP or RTSP, managed independently of printers)
 
 let cameras = [];
 
@@ -1413,6 +1419,14 @@ async function loadCameras() {
     } catch (e) {}
 }
 
+function cameraDisplayURL(raw) {
+    try {
+        const url = new URL(raw);
+        if (url.password) url.password = '***';
+        return url.href;
+    } catch { return raw; }
+}
+
 function renderSettingsCameraList(cams) {
     const list = document.getElementById('settings-camera-list');
     if (!cams.length) {
@@ -1422,8 +1436,8 @@ function renderSettingsCameraList(cams) {
     list.innerHTML = cams.map(c => `
         <div class="settings-printer-row">
             <div class="settings-printer-info">
-                <span class="settings-printer-name">${esc(c.name || c.url)}</span>
-                <span class="settings-printer-url">${esc(c.url)} — ${c.printer_name ? esc(c.printer_name) : 'Unassigned'}</span>
+                <span class="settings-printer-name">${esc(c.name || cameraDisplayURL(c.url))}</span>
+                <span class="settings-printer-url">${esc(cameraDisplayURL(c.url))} — ${c.printer_name ? esc(c.printer_name) : 'Unassigned'}</span>
             </div>
             <div class="settings-printer-actions">
                 <button class="btn btn-sm" onclick="closeModal();openEditCameraModal(${c.id})" title="Edit">&#9998; Edit</button>
@@ -1457,11 +1471,12 @@ function openEditCameraModal(id) {
     document.getElementById('camera-url').value = cam.url;
     document.getElementById('camera-name').value = cam.name;
     populateCameraPrinterOptions(cam.printer_id);
-    document.getElementById('camera-orientation-group').style.display = 'block';
+    const isRTSP = /^rtsp:/i.test(cam.url);
+    document.getElementById('camera-orientation-group').style.display = isRTSP ? 'none' : 'block';
     document.getElementById('camera-web-link').href = safeUrl(cam.url);
     document.getElementById('camera-hmirror').checked = false;
     document.getElementById('camera-vflip').checked = false;
-    fetch(`/api/cameras/${id}/settings`).then(r => r.ok ? r.json() : null).then(s => {
+    if (!isRTSP) fetch(`/api/cameras/${id}/settings`).then(r => r.ok ? r.json() : null).then(s => {
         if (!s) return;
         document.getElementById('camera-hmirror').checked = !!s.hmirror;
         document.getElementById('camera-vflip').checked = !!s.vflip;
@@ -2161,7 +2176,7 @@ async function exportConfig() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'printspy-config.yaml';
+        a.download = 'printwatcher-config.yaml';
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {}

@@ -1,6 +1,6 @@
 // Package ingest implements a minimal PrusaLink-compatible HTTP surface so
 // PrusaSlicer/OrcaSlicer's "Send to printer" (Physical Printer, PrusaLink
-// mode) can target PrintSpy directly, relaying onto a target's pinned
+// mode) can target PrintWatcher directly, relaying onto a target's pinned
 // printer automatically - no manual step, matching how OctoPrint's own
 // upload works. A slicer's connection test hits GET /ingest/{targetID}/api/version,
 // and "Send to printer" hits PUT /ingest/{targetID}/api/v1/files/{storage}/{path}.
@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ccmpbll/printspy/db"
-	"github.com/ccmpbll/printspy/models"
+	"github.com/jbat66/PrintWatcher/db"
+	"github.com/jbat66/PrintWatcher/models"
 )
 
 const maxUploadBytes = 200 << 20
@@ -113,7 +113,7 @@ func (h *Handler) version(w http.ResponseWriter, r *http.Request) {
 		"api":      "2.0.0",
 		"server":   "1.0.0",
 		"text":     "PrusaLink",
-		"hostname": "printspy",
+		"hostname": "printwatcher",
 		"capabilities": map[string]bool{
 			"upload-by-put": true,
 		},

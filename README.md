@@ -55,14 +55,11 @@ Plugin architecture — new platforms should be straightforward to add.
 ## Quick start
 
 ```bash
-git clone https://github.com/jbat66/PrintWatcher.git
-cd PrintWatcher
-docker build -t printwatcher:local .
 docker run -d \
   --name printwatcher \
   -p 8080:8080 \
   -v printwatcher-data:/data \
-  printwatcher:local
+  ghcr.io/jbat66/printwatcher:latest
 ```
 
 Open `http://<docker host IP>:8080` — first run prompts you to create a login. Once in, click the settings gear and add your first printer. You'll need the printer's URL and OctoPrint API key or Prusalink user/pass.
@@ -72,7 +69,7 @@ Open `http://<docker host IP>:8080` — first run prompts you to create a login.
 ```yaml
 services:
   printwatcher:
-    build: .
+    image: ghcr.io/jbat66/printwatcher:latest
     ports:
       - "8080:8080"
     volumes:
@@ -85,9 +82,9 @@ volumes:
 
 ### Unraid
 
-The container template is [UNRAID/printwatcher.xml](UNRAID/printwatcher.xml). It uses `jbat66/printwatcher:latest`, maps host port `8086` to container port `8080`, and stores data under `/mnt/user/appdata/printwatcher`. The template icon and update URL point to this repository. HTTP and RTSP cameras require outbound connectivity from the container; no additional incoming camera port is needed.
+The container template is [UNRAID/printwatcher.xml](UNRAID/printwatcher.xml). It uses `ghcr.io/jbat66/printwatcher:latest`, maps host port `8086` to container port `8080`, and stores data under `/mnt/user/appdata/printwatcher`. The template icon and update URL point to this repository. HTTP and RTSP cameras require outbound connectivity from the container; no additional incoming camera port is needed.
 
-The image must be published to Docker Hub before Unraid can pull it. The existing tag-triggered Build and Publish workflow requires the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`; pushing a release tag publishes `latest` and the tag version. A normal push to `main` runs CI without publishing an image.
+The Build and Publish workflow tests and publishes to GitHub Container Registry using the built-in `GITHUB_TOKEN`, matching Prusa-Print-Monitor. Pushes to `main` publish `latest` and the version in `VERSION` (currently `0.1.0`); release tags and manual workflow runs also publish the versioned image. No Docker Hub account or extra registry secrets are required. The package must be public for Unraid to pull it without signing in; check the package settings after its first publication.
 
 ## Configuration
 

@@ -2,8 +2,8 @@
 <Container version="2">
   <Name>PrintWatcher</Name>
   
-  <Repository>jbat66/printwatcher:latest</Repository>
-  <Registry>https://hub.docker.com/r/jbat66/printwatcher</Registry>
+  <Repository>ghcr.io/jbat66/printwatcher:latest</Repository>
+  <Registry>https://github.com/jbat66/PrintWatcher/pkgs/container/printwatcher</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <MyMAC/>

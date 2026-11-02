@@ -2,29 +2,59 @@ name: Build and Publish
 
 on:
   push:
-    tags: ['*']
+    branches: [main]
+    tags: ['[0-9]*', 'v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
-  IMAGE_NAME: jbat66/printwatcher
+  IMAGE_NAME: ghcr.io/jbat66/printwatcher
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./...
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+      packages: write
     steps:
       - uses: actions/checkout@v7
-
+      - name: Read application version
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$VERSION"
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Container metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.version.outputs.value }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
@@ -32,22 +62,30 @@ jobs:
           push: true
           platforms: linux/amd64
           build-args: |
-            VERSION=${{ github.ref_name }}
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            VERSION=${{ steps.version.outputs.value }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Get tag annotation
-        id: tag_message
+      - name: Smoke test published container
+        env:
+          IMAGE: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
         run: |
-          MSG=$(git tag -l --format='%(contents)' "${{ github.ref_name }}")
-          echo "body<<ENDOFMSG" >> $GITHUB_OUTPUT
-          echo "$MSG" >> $GITHUB_OUTPUT
-          echo "ENDOFMSG" >> $GITHUB_OUTPUT
-
+          docker pull "$IMAGE"
+          docker run --rm --entrypoint ffmpeg "$IMAGE" -version
+          docker run --rm --entrypoint ffmpeg "$IMAGE" -hide_banner -h muxer=mpjpeg 2>&1 | grep boundary_tag
+          docker run -d --name printwatcher-smoke -p 127.0.0.1:18080:8080 "$IMAGE"
+          trap 'docker logs printwatcher-smoke; docker rm -f printwatcher-smoke' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --location http://127.0.0.1:18080/login > /tmp/login.html; then break; fi
+            sleep 1
+          done
+          grep '<title>PrintWatcher</title>' /tmp/login.html
+          curl --fail http://127.0.0.1:18080/favicon.png -o /tmp/favicon.png
       - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          body: ${{ steps.tag_message.outputs.body }}
+          generate_release_notes: true

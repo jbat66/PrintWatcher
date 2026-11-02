@@ -1,5 +1,6 @@
 services:
   printwatcher:
+    image: ghcr.io/jbat66/printwatcher:latest
     build: .
     ports:
       - "8080:8080"

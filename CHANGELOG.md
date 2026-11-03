@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.02.2
+
+- Center each primary stat reading within its box while preserving the current font and box sizes.
+- Keep labels clear of centered readings in narrow layouts.
+
 ## v2026.11.02.1
 
 - Adopt date-based release versions and matching annotated tags for every change.

@@ -618,9 +618,10 @@ header .printer-count {
 
 /* Keep the existing 48px boxes while placing the reading beside its label. */
 .stat-box-reading {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 0.5rem;
     height: 3rem;
     min-width: 0;
@@ -628,14 +629,28 @@ header .printer-count {
 }
 
 .stat-box-reading .stat-label {
-    flex-shrink: 0;
+    position: absolute;
+    left: 0.5rem;
 }
 
 .stat-box-reading .stat-value {
+    text-align: center;
     font-size: clamp(1.25rem, 12cqi, 1.75rem);
     line-height: 1;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+}
+
+.stat-box-reading .stat-unit {
+    line-height: 1;
+}
+
+/* Keep labels clear of centered readings in narrow information boxes. */
+@container (max-width: 200px) {
+    .stat-box-reading .stat-label {
+        top: 0.125rem;
+        line-height: 1;
+    }
 }
 
 .stat-unit {

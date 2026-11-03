@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"log"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -26,7 +28,13 @@ import (
 
 var version = "dev"
 
+//go:embed VERSION
+var sourceVersion string
+
 func main() {
+	if version == "dev" || version == "" {
+		version = strings.TrimSpace(sourceVersion)
+	}
 	port := 8080
 	dataDir := "/data"
 

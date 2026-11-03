@@ -59,10 +59,23 @@ body {
 }
 
 header {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
+}
+
+.header-brand, .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.header-actions {
+    justify-content: flex-end;
+    justify-self: end;
     flex-wrap: wrap;
 }
 
@@ -84,6 +97,7 @@ header .app-version {
 }
 
 .header-clock {
+    justify-self: center;
     font-size: 1rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -602,12 +616,24 @@ header .printer-count {
     font-weight: 600;
 }
 
-/* Preserve the original 0.85rem × 1.5 value line height, so larger
-   readings do not increase the information boxes or move their labels. */
-.stat-value:is([data-field="elapsed"], [data-field="remaining"], [data-field="eta"], [data-field="hotend"], [data-field="bed"]) {
-    font-size: 1.25rem;
-    line-height: 1.275rem;
-    height: 1.275rem;
+/* Keep the existing 48px boxes while placing the reading beside its label. */
+.stat-box-reading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    height: 3rem;
+    min-width: 0;
+    container-type: inline-size;
+}
+
+.stat-box-reading .stat-label {
+    flex-shrink: 0;
+}
+
+.stat-box-reading .stat-value {
+    font-size: clamp(1.25rem, 12cqi, 1.75rem);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -894,6 +920,20 @@ header .printer-count {
 
 /* Responsive */
 @media (max-width: 768px) {
+    header {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .header-clock {
+        grid-row: 1;
+    }
+
+    .header-brand, .header-actions {
+        justify-self: center;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
     .container {
         padding: 1rem;
     }

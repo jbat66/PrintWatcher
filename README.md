@@ -84,7 +84,7 @@ volumes:
 
 The container template is [UNRAID/printwatcher.xml](UNRAID/printwatcher.xml). It uses `ghcr.io/jbat66/printwatcher:latest`, maps host port `8086` to container port `8080`, and stores data under `/mnt/user/appdata/printwatcher`. The template icon and update URL point to this repository. HTTP and RTSP cameras require outbound connectivity from the container; no additional incoming camera port is needed.
 
-The Build and Publish workflow tests and publishes to GitHub Container Registry using the built-in `GITHUB_TOKEN`, matching Prusa-Print-Monitor. Pushes to `main` publish `latest` and the version in `VERSION` (currently `0.1.0`); release tags and manual workflow runs also publish the versioned image. No Docker Hub account or extra registry secrets are required. The package must be public for Unraid to pull it without signing in; check the package settings after its first publication.
+The Build and Publish workflow tests and publishes to GitHub Container Registry using the built-in `GITHUB_TOKEN`, matching Prusa-Print-Monitor. Every release uses `vYYYY.MM.DD.I`, where the date is in America/Denver and `I` starts at 1 each day. Update `VERSION` for each logical change, commit it with the changes, and push a matching annotated Git tag. Tag pushes publish `latest`, the exact versioned image, and a GitHub release. Pushes to `main` run CI; manual publishing is also available. No Docker Hub account or extra registry secrets are required. The package must be public for Unraid to pull it without signing in; check the package settings after its first publication.
 
 ## Configuration
 

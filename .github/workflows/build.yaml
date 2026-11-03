@@ -2,8 +2,7 @@ name: Build and Publish
 
 on:
   push:
-    branches: [main]
-    tags: ['[0-9]*', 'v*']
+    tags: ['v[0-9][0-9][0-9][0-9].*']
   workflow_dispatch:
 
 permissions:
@@ -34,9 +33,9 @@ jobs:
         id: version
         run: |
           VERSION=$(cat VERSION)
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          [[ "$VERSION" =~ ^v[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])\.[1-9][0-9]*$ ]] || exit 1
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            test "${GITHUB_REF_NAME#v}" = "$VERSION"
+            test "$GITHUB_REF_NAME" = "$VERSION"
           fi
           echo "value=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Set up Docker Buildx
@@ -53,7 +52,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
             type=raw,value=${{ steps.version.outputs.value }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
@@ -72,6 +71,7 @@ jobs:
       - name: Smoke test published container
         env:
           IMAGE: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.value }}
+          EXPECTED_VERSION: ${{ steps.version.outputs.value }}
         run: |
           docker pull "$IMAGE"
           docker run --rm --entrypoint ffmpeg "$IMAGE" -version
@@ -84,6 +84,8 @@ jobs:
           done
           grep '<title>PrintWatcher</title>' /tmp/login.html
           curl --fail http://127.0.0.1:18080/favicon.png -o /tmp/favicon.png
+          curl --fail --silent -c /tmp/smoke-cookies -X POST --data-urlencode 'username=smoke' --data-urlencode 'password=PrintWatcher-smoke-test-only' http://127.0.0.1:18080/setup -o /dev/null
+          curl --fail --silent -b /tmp/smoke-cookies http://127.0.0.1:18080/api/version | python3 -c 'import json, os, sys; actual = json.load(sys.stdin)["version"]; assert actual == os.environ["EXPECTED_VERSION"], actual; print("App version verified:", actual)'
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3

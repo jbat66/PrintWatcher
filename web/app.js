@@ -838,8 +838,8 @@ function renderPrintingStats(cfg, status, hasRealCam) {
     const temps = status.temps;
 
     const tempCells = [];
-    tempCells.push(`<div class="stat-box"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.hotend_target)}&deg;C</span></div></div>`);
-    tempCells.push(`<div class="stat-box"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.bed_target)}&deg;C</span></div></div>`);
+    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.hotend_target)}&deg;C</span></div></div>`);
+    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.bed_target)}&deg;C</span></div></div>`);
     if (temps.has_chamber) {
         tempCells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${Math.round(temps.chamber_actual)}<span class="stat-unit">&deg;C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '&deg;C' : 'off'}</span></div></div>`);
     }
@@ -873,9 +873,9 @@ function renderPrintingStats(cfg, status, hasRealCam) {
         </div>
         <div class="stat-rows">
             <div class="stat-grid stat-grid-auto">
-                <div class="stat-box"><div class="stat-label">Elapsed</div><div class="stat-value" data-field="elapsed">${elapsed}</div></div>
-                <div class="stat-box"><div class="stat-label">Remaining</div><div class="stat-value" data-field="remaining">${remaining}</div></div>
-                <div class="stat-box"><div class="stat-label">ETA</div><div class="stat-value" data-field="eta">${eta}</div></div>
+                <div class="stat-box stat-box-reading"><div class="stat-label">Elapsed</div><div class="stat-value" data-field="elapsed">${elapsed}</div></div>
+                <div class="stat-box stat-box-reading"><div class="stat-label">Remaining</div><div class="stat-value" data-field="remaining">${remaining}</div></div>
+                <div class="stat-box stat-box-reading"><div class="stat-label">ETA</div><div class="stat-value" data-field="eta">${eta}</div></div>
                 ${layerCell}
             </div>
             <div class="stat-grid stat-grid-auto">${tempCells.join('')}</div>
@@ -890,8 +890,8 @@ function renderIdleStats(status, state) {
     let tempsHTML = '';
     if (temps && state !== 'offline' && state !== 'disconnected') {
         const cells = [];
-        cells.push(`<div class="stat-box"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '&deg;C' : 'off'}</span></div></div>`);
-        cells.push(`<div class="stat-box"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${temps.bed_target > 0 ? Math.round(temps.bed_target) + '&deg;C' : 'off'}</span></div></div>`);
+        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '&deg;C' : 'off'}</span></div></div>`);
+        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${temps.bed_target > 0 ? Math.round(temps.bed_target) + '&deg;C' : 'off'}</span></div></div>`);
         if (temps.has_chamber) {
             cells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${Math.round(temps.chamber_actual)}<span class="stat-unit">&deg;C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '&deg;C' : 'off'}</span></div></div>`);
         }
@@ -2315,7 +2315,7 @@ fetch('/api/settings').then(r => r.json()).then(settings => {
 
 fetch('/api/version').then(r => r.json()).then(data => {
     const el = document.getElementById('app-version');
-    if (el && data.version) el.textContent = 'v' + data.version;
+    if (el && data.version) el.textContent = data.version.startsWith('v') ? data.version : 'v' + data.version;
 }).catch(() => {});
 
 connectSSE();

@@ -2283,6 +2283,19 @@ async function discardIngestJob(jobID) {
     } catch (e) { netFail('Failed to discard job.'); }
 }
 
+// Display the viewer's local time independently of printer polling or SSE.
+function updateCurrentTime() {
+    const clock = document.getElementById('current-time');
+    if (!clock) return;
+    const now = new Date();
+    clock.dateTime = now.toISOString();
+    clock.textContent = now.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', second: '2-digit'});
+    clock.title = now.toLocaleDateString([], {dateStyle: 'full'}) + ' · ' + Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+updateCurrentTime();
+setInterval(updateCurrentTime, 1000);
+
 // Initialize
 fetch('/api/settings').then(r => r.json()).then(settings => {
     snapshotInterval = parseInt(settings.snapshot_interval) || 10;

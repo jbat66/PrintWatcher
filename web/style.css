@@ -83,6 +83,13 @@ header .app-version {
     margin-bottom: 2px;
 }
 
+.header-clock {
+    font-size: 1rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
 header .printer-count {
     font-size: 0.8rem;
     color: var(--text-secondary);
@@ -593,6 +600,16 @@ header .printer-count {
 .stat-value {
     font-size: 0.85rem;
     font-weight: 600;
+}
+
+/* Preserve the original 0.85rem × 1.5 value line height, so larger
+   readings do not increase the information boxes or move their labels. */
+.stat-value:is([data-field="elapsed"], [data-field="remaining"], [data-field="eta"], [data-field="hotend"], [data-field="bed"]) {
+    font-size: 1.25rem;
+    line-height: 1.275rem;
+    height: 1.275rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .stat-unit {

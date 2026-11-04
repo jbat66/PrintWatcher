@@ -1118,6 +1118,11 @@ function notifyCustomizeHTML(t) {
                     <option value="none">None</option>
                 </select>
             </div>
+            ${t.startsWith('checkpoint') ? `<div class="form-group">
+                <label for="setting-notify-${t}-delay">Delay (seconds)</label>
+                <input type="number" id="setting-notify-${t}-delay" min="0" max="86400" step="1" value="0">
+                <div class="form-hint">The image is captured after the delay. Enter 0 to send immediately.</div>
+            </div>` : ''}
             <div class="form-group">
                 <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal">
                     <input type="checkbox" id="setting-notify-${t}-high-priority" style="width:auto">
@@ -1167,6 +1172,8 @@ function openSettings() {
             document.getElementById(`setting-notify-${t}-message`).value = settings[`notify_${t}_message`] || '';
             document.getElementById(`setting-notify-${t}-sound`).value = settings[`notify_${t}_sound`] || '';
             document.getElementById(`setting-notify-${t}-image`).value = settings[`notify_${t}_image`] || '';
+            const delay = document.getElementById(`setting-notify-${t}-delay`);
+            if (delay) delay.value = settings[`notify_${t}_delay_seconds`] || '0';
             document.getElementById(`setting-notify-${t}-high-priority`).checked = settings[`notify_${t}_high_priority`] === '1';
         });
         renderSettingsPrinterList();
@@ -2048,6 +2055,8 @@ async function saveNotificationSettings(e) {
         settings[`notify_${t}_message`] = document.getElementById(`setting-notify-${t}-message`).value;
         settings[`notify_${t}_sound`] = document.getElementById(`setting-notify-${t}-sound`).value;
         settings[`notify_${t}_image`] = document.getElementById(`setting-notify-${t}-image`).value;
+        const delay = document.getElementById(`setting-notify-${t}-delay`);
+        if (delay) settings[`notify_${t}_delay_seconds`] = delay.value || '0';
         settings[`notify_${t}_high_priority`] = document.getElementById(`setting-notify-${t}-high-priority`).checked ? '1' : '0';
     });
     if (!await putSettings(settings)) return;

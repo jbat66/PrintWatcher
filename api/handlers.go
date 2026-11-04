@@ -2042,8 +2042,14 @@ func validateSetting(key, value string) (string, error) {
 		}
 		if n < 1 {
 			n = 1
-		} else if n > 99 {
-			n = 99
+		} else if n > 100 {
+			n = 100
+		}
+		return strconv.Itoa(n), nil
+	case "notify_checkpoint1_delay_seconds", "notify_checkpoint2_delay_seconds":
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 0 || n > poller.MaxCheckpointDelaySeconds {
+			return "", fmt.Errorf("%s must be a whole number from 0 to %d seconds", key, poller.MaxCheckpointDelaySeconds)
 		}
 		return strconv.Itoa(n), nil
 	case "notify_start_sound", "notify_complete_sound", "notify_failed_sound", "notify_error_sound",

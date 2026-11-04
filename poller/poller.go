@@ -1136,7 +1136,7 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 	if prev == nil && status.State == models.StatePrinting {
 		p.seedPrintingState(id, status)
 	} else {
-		p.checkCheckpoints(ctx, id, status)
+		p.checkCheckpoints(id, status)
 		p.checkPrintStartNotify(ctx, id, prevState, status)
 	}
 	p.checkErrorNotify(ctx, id, prevState, status)
@@ -1384,40 +1384,43 @@ func (p *Poller) seedPrintingState(id int64, status *models.PrinterStatus) {
 }
 
 // checkCheckpoints fires the checkpoint1/checkpoint2 percent-of-completion
-// notifications, each one-shot per print. Latches reset whenever the
-// printer isn't actively printing/paused, so they're armed again for the
-// next print without needing a separate "print just started" transition
-// check.
-func (p *Poller) checkCheckpoints(ctx context.Context, id int64, status *models.PrinterStatus) {
+// notifications, each one-shot per print. Latches reset when the printer
+// leaves the print. A lost connection alone does not reset them.
+func (p *Poller) checkCheckpoints(id int64, status *models.PrinterStatus) {
 	printing := status.State == models.StatePrinting || status.State == models.StatePaused
 
-	// Settings are SQLite reads - done before taking p.mu so the global lock
-	// is never held across disk I/O.
-	var en1, en2 bool
-	var pct1, pct2 float64
+	if !printing && status.State != models.StateOffline {
+		p.mu.Lock()
+		if pp := p.printers[id]; pp != nil {
+			pp.notifiedCheckpoint1 = false
+			pp.notifiedCheckpoint2 = false
+		}
+		p.mu.Unlock()
+	}
 	if status.State == models.StatePrinting && status.Job != nil {
-		en1, en2 = p.notifySettingBool("notify_checkpoint1_enabled"), p.notifySettingBool("notify_checkpoint2_enabled")
-		pct1, pct2 = p.notifySettingPercent("notify_checkpoint1_percent", 5), p.notifySettingPercent("notify_checkpoint2_percent", 50)
+		p.fireCheckpoints(id, status.Job, status.ThumbnailURL, false)
+	}
+}
+
+func (p *Poller) fireCheckpoints(id int64, job *models.JobInfo, thumbnailURL string, completed bool) {
+	en1 := p.notifySettingBool("notify_checkpoint1_enabled")
+	en2 := p.notifySettingBool("notify_checkpoint2_enabled")
+	pct1 := p.notifySettingPercent("notify_checkpoint1_percent", 5)
+	pct2 := p.notifySettingPercent("notify_checkpoint2_percent", 50)
+	progress := job.Progress
+	if completed {
+		progress = 100
+		// A terminal poll can skip 100%, but must not replay earlier checkpoints.
+		en1 = en1 && pct1 == 100
+		en2 = en2 && pct2 == 100
 	}
 
 	p.mu.Lock()
-	pp, ok := p.printers[id]
-	if !ok {
+	pp := p.printers[id]
+	if pp == nil {
 		p.mu.Unlock()
 		return
 	}
-	if !printing {
-		pp.notifiedCheckpoint1 = false
-		pp.notifiedCheckpoint2 = false
-		p.mu.Unlock()
-		return
-	}
-	if status.State != models.StatePrinting || status.Job == nil {
-		p.mu.Unlock()
-		return
-	}
-
-	progress := status.Job.Progress
 	fire1 := !pp.notifiedCheckpoint1 && en1 && progress >= pct1
 	fire2 := !pp.notifiedCheckpoint2 && en2 && progress >= pct2
 	if fire1 {
@@ -1432,19 +1435,47 @@ func (p *Poller) checkCheckpoints(ctx context.Context, id int64, status *models.
 		return
 	}
 	printerName := p.notifyPrinterName(id)
-	fileName := status.Job.FileName
-	defaultMessage := fmt.Sprintf("%s: %s reached %.0f%%", printerName, fileName, status.Job.Progress)
+	fileName := job.FileName
+	defaultMessage := fmt.Sprintf("%s: %s reached %.0f%%", printerName, fileName, progress)
 	placeholders := map[string]string{
 		"printer": printerName,
 		"file":    fileName,
-		"percent": fmt.Sprintf("%.0f", status.Job.Progress),
+		"percent": fmt.Sprintf("%.0f", progress),
 	}
 	if fire1 {
-		p.sendNotification(ctx, id, "checkpoint1", "Print checkpoint", defaultMessage, placeholders, "")
+		p.sendCheckpoint(id, "checkpoint1", defaultMessage, placeholders, thumbnailURL)
 	}
 	if fire2 {
-		p.sendNotification(ctx, id, "checkpoint2", "Print checkpoint", defaultMessage, placeholders, "")
+		p.sendCheckpoint(id, "checkpoint2", defaultMessage, placeholders, thumbnailURL)
 	}
+}
+
+const MaxCheckpointDelaySeconds = 86400
+
+func (p *Poller) sendCheckpoint(id int64, eventType, message string, values map[string]string, thumbnailURL string) {
+	raw, _ := p.db.GetSetting("notify_" + eventType + "_delay_seconds")
+	seconds, _ := strconv.Atoi(raw)
+	if seconds < 0 || seconds > MaxCheckpointDelaySeconds {
+		seconds = 0
+	}
+
+	// A manual repoll's request can end before the delay. Use the app context
+	// so the alert survives that request but cancels on shutdown.
+	ctx := p.bgCtx()
+	p.goTracked(func() {
+		if seconds > 0 {
+			timer := time.NewTimer(time.Duration(seconds) * time.Second)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+			}
+		}
+		if ctx.Err() == nil {
+			p.sendNotification(ctx, id, eventType, "Print checkpoint", message, values, thumbnailURL)
+		}
+	})
 }
 
 // notifyPrintResult sends the Print Complete/Failed notification. A
@@ -1827,6 +1858,9 @@ func (p *Poller) trackPrintHistory(ctx context.Context, id int64, prevState mode
 		haveLastProgress = true
 	}
 	result := printResult(jobState, status.State == models.StateError, haveLastProgress, lastProgress)
+	if result == "completed" && (jobState == "FINISHED" || lastProgress >= 99) {
+		p.fireCheckpoints(id, prev.Job, thumbnailURL, true)
+	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	h := &models.PrintHistory{

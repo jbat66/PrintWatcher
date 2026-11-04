@@ -92,3 +92,50 @@ func TestPollDiscardedAfterPrinterReplaced(t *testing.T) {
 		t.Error("stale poll wrote the cache")
 	}
 }
+
+func TestCheckpointWhenPrinterSkipsReporting100Percent(t *testing.T) {
+	database, err := db.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	cfg := &models.PrinterConfig{Name: "p", Type: "octoprint", URL: "http://x", Enabled: true}
+	if err := database.CreatePrinter(cfg); err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range map[string]string{
+		"notify_checkpoint1_enabled": "1",
+		"notify_checkpoint1_percent": "100",
+		"notify_checkpoint2_enabled": "1",
+		"notify_checkpoint2_percent": "50",
+	} {
+		if err := database.SetSetting(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	p := New(database)
+	defer p.Wait()
+	pp := &polledPrinter{}
+	p.printers[cfg.ID] = pp
+	previous := &models.PrinterStatus{
+		State: models.StatePrinting,
+		Job:   &models.JobInfo{FileName: "a.gcode", Progress: 99},
+	}
+	idle := &models.PrinterStatus{State: models.StateIdle}
+	previous.Job.JobState = "STOPPED"
+	p.trackPrintHistory(context.Background(), cfg.ID, previous.State, idle, previous, 0, nil)
+	if pp.notifiedCheckpoint1 {
+		t.Fatal("cancelled job triggered the 100% checkpoint")
+	}
+
+	previous.Job.JobState = "FINISHED"
+	p.trackPrintHistory(context.Background(), cfg.ID, previous.State, idle, previous, 0, nil)
+	if !pp.notifiedCheckpoint1 || pp.notifiedCheckpoint2 {
+		t.Fatal("completion should fire only the missed 100% checkpoint")
+	}
+	p.checkCheckpoints(cfg.ID, &models.PrinterStatus{State: models.StateOffline})
+	if !pp.notifiedCheckpoint1 {
+		t.Fatal("transient offline status cleared the checkpoint latch")
+	}
+}

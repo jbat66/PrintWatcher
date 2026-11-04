@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.03.1
+
+- Allow 100% checkpoints and independent Pushover delays, with camera capture after the delay.
+
 ## v2026.11.02.2
 
 - Center each primary stat reading within its box while preserving the current font and box sizes.

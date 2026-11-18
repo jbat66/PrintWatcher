@@ -1,7 +1,7 @@
 # <img src="web/logo.png" alt="" width="64"> PrintWatcher
 ![Build Status](https://img.shields.io/github/actions/workflow/status/jbat66/PrintWatcher/build.yaml) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
 
-A self-hosted dashboard for monitoring multiple 3D printers — OctoPrint and PrusaLink — from a single web interface.
+A self-hosted dashboard for monitoring multiple 3D printers — OctoPrint, PrusaLink, and Snapmaker U1 — from a single web interface.
 
 This was built for my own personal use and the way I want to interact with my printers, as well as an ongoing experiment in agentic coding.
 
@@ -52,6 +52,12 @@ Plugin architecture — new platforms should be straightforward to add.
 - Slicer print-host target — point PrusaSlicer/OrcaSlicer's "Send to printer" (PrusaLink mode) at PrintWatcher, pinned to one specific printer; "Upload" relays automatically once the printer's online, "Upload and Print" also powers it on first if it's off — no manual step either way
 - Print history enriched with real per-print metadata — material, filament used/cost, layer height, duration vs. estimate, and per-tool breakdown for multi-material prints — parsed directly from the file's own slicer metadata, since none of this is exposed over PrusaLink's API
 
+### Snapmaker U1
+
+In Settings → Add Printer, select **Snapmaker U1** and enter the printer’s Moonraker URL and API key. Use the printer’s HTTP address if it serves Moonraker, or include port 7125 for the direct API. Use **Test Connection** before saving.
+
+The integration reports print progress, ETA, active tool and bed temperatures, chamber temperature when available, and the active print’s thumbnail. It supports Moonraker print controls and .gcode file management. Assign an HTTP or RTSP camera in Settings for a live feed.
+
 ## Quick start
 
 ```bash
@@ -62,7 +68,7 @@ docker run -d \
   ghcr.io/jbat66/printwatcher:latest
 ```
 
-Open `http://<docker host IP>:8080` — first run prompts you to create a login. Once in, click the settings gear and add your first printer. You'll need the printer's URL and OctoPrint API key or Prusalink user/pass.
+Open `http://<docker host IP>:8080` — first run prompts you to create a login. Once in, click the settings gear and add your first printer. Use the printer’s URL and its API key or PrusaLink username and password.
 
 ### Docker Compose
 

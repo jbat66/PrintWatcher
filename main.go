@@ -22,6 +22,7 @@ import (
 	"github.com/jbat66/PrintWatcher/logging"
 	"github.com/jbat66/PrintWatcher/poller"
 
+	_ "github.com/jbat66/PrintWatcher/plugin/moonraker"
 	_ "github.com/jbat66/PrintWatcher/plugin/octoprint"
 	_ "github.com/jbat66/PrintWatcher/plugin/prusalink"
 )

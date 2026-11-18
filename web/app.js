@@ -1688,9 +1688,11 @@ async function movePrinter(id, direction) {
 function onPrinterTypeChange() {
     const type = document.getElementById('printer-type').value;
     const isPrusalink = type === 'prusalink';
+    const isU1 = type === 'snapmaker-u1';
     document.getElementById('username-group').style.display = isPrusalink ? '' : 'none';
     document.getElementById('apikey-label').textContent = isPrusalink ? 'Password' : 'API Key';
-    document.getElementById('printer-apikey').placeholder = isPrusalink ? 'Your PrusaLink password' : 'Your OctoPrint API key';
+    document.getElementById('printer-apikey').placeholder = isPrusalink ? 'Your PrusaLink password' : isU1 ? 'Your Moonraker API key' : 'Your OctoPrint API key';
+    document.getElementById('printer-url').placeholder = isU1 ? 'http://printer-address:7125' : 'http://192.168.1.40';
     if (isPrusalink && !document.getElementById('printer-username').value) {
         document.getElementById('printer-username').value = 'maker';
     }

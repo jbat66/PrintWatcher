@@ -137,11 +137,12 @@ func (h *Handler) listPrinters(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) buildPrinterWithStatus(p models.PrinterConfig, statuses map[int64]*models.PrinterStatus) models.PrinterWithStatus {
 	return models.PrinterWithStatus{
-		Config:      p,
-		Status:      statuses[p.ID],
-		HasCamera:   h.hasCameraAssigned(p.ID),
-		DisplayName: h.poller.GetDisplayName(p.ID),
-		HasWebcam:   h.poller.GetWebcamURL(p.ID) != "",
+		Config:          p,
+		Status:          statuses[p.ID],
+		HasCamera:       h.hasCameraAssigned(p.ID),
+		DisplayName:     h.poller.GetDisplayName(p.ID),
+		HasWebcam:       h.poller.GetWebcamURL(p.ID) != "",
+		HasSnapshotLive: h.poller.GetSnapshotLiveURL(p.ID) != "",
 	}
 }
 
@@ -1667,6 +1668,10 @@ func (h *Handler) handleWebcamProxy(w http.ResponseWriter, r *http.Request) {
 		webcamURL = strings.TrimRight(cam.URL, "/") + "/stream"
 		usingCamera = true
 	} else {
+		if snapshotURL := h.poller.GetSnapshotLiveURL(id); snapshotURL != "" {
+			h.serveSnapshotLive(w, r, id, snapshotURL)
+			return
+		}
 		webcamURL = h.poller.GetWebcamURL(id)
 	}
 	if webcamURL == "" {

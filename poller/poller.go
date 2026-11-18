@@ -444,6 +444,16 @@ func (p *Poller) GetSnapshotURL(id int64) string {
 	return pl.GetSnapshotURL()
 }
 
+func (p *Poller) GetSnapshotLiveURL(id int64) string {
+	pl, err := p.plugin(id)
+	if err == nil {
+		if camera, ok := pl.(plugin.SnapshotLive); ok {
+			return camera.SnapshotLiveURL()
+		}
+	}
+	return ""
+}
+
 // AuthenticatedDo proxies req through the printer's plugin, which applies
 // whatever auth scheme that printer type needs - callers don't need to
 // know or care which one.
@@ -1047,7 +1057,15 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 	var status *models.PrinterStatus
 	var err error
 	if !skip {
+		live, hasSnapshotLive := pl.(plugin.SnapshotLive)
+		var prevLiveURL string
+		if hasSnapshotLive {
+			prevLiveURL = live.SnapshotLiveURL()
+		}
 		status, err = pl.GetStatus(ctx)
+		if hasSnapshotLive && prevLiveURL != live.SnapshotLiveURL() {
+			p.BroadcastRefresh()
+		}
 		if pp != nil {
 			pp.lastRequest = time.Now()
 		}

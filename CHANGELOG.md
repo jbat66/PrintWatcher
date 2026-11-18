@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.17.2
+
+- Use the Snapmaker U1 built-in camera for SNAP and one-frame-per-second LIVE view.
+- Clarify the Klipper printer type and API key labels.
+
 ## v2026.11.17.1
 
 - Add Snapmaker U1 support through Moonraker with API-key authentication, monitoring, print controls, and G-code file management.

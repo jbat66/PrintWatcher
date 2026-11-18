@@ -19,6 +19,8 @@ func TestU1StatusAndTerminalJob(t *testing.T) {
 			return
 		}
 		switch r.URL.Path {
+		case "/server/files/roots":
+			fmt.Fprint(w, `{"result":[{"name":"gcodes"},{"name":"camera"}]}`)
 		case "/server/info":
 			fmt.Fprint(w, `{"result":{"moonraker_version":"1.4.0"}}`)
 		case "/printer/objects/query":
@@ -53,6 +55,9 @@ func TestU1StatusAndTerminalJob(t *testing.T) {
 	}
 	if status.ThumbnailURL != server.URL+"/server/files/gcodes/folder/.thumbs/test.png" {
 		t.Fatalf("unexpected thumbnail: %q", status.ThumbnailURL)
+	}
+	if want := server.URL + "/server/files/camera/monitor.jpg"; p.GetSnapshotURL() != want || p.SnapshotLiveURL() != want {
+		t.Fatalf("expected built-in camera at %s, got %q", want, p.GetSnapshotURL())
 	}
 	completed.Store(true)
 	status, err = p.GetStatus(ctx)

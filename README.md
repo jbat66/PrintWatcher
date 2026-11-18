@@ -54,9 +54,9 @@ Plugin architecture — new platforms should be straightforward to add.
 
 ### Snapmaker U1
 
-In Settings → Add Printer, select **Snapmaker U1** and enter the printer’s Moonraker URL and API key. Use the printer’s HTTP address if it serves Moonraker, or include port 7125 for the direct API. Use **Test Connection** before saving.
+In Settings → Add Printer, select **Snapmaker U1 or other Klipper** and enter the printer’s Moonraker URL and API key. Use the printer’s HTTP address if it serves Moonraker, or include port 7125 for the direct API. Use **Test Connection** before saving.
 
-The integration reports print progress, ETA, active tool and bed temperatures, chamber temperature when available, and the active print’s thumbnail. It supports Moonraker print controls and .gcode file management. Assign an HTTP or RTSP camera in Settings for a live feed.
+The integration reports print progress, ETA, active tool and bed temperatures, chamber temperature when available, and the active print’s thumbnail. It supports Moonraker print controls and .gcode file management. When Moonraker exposes the U1 built-in camera, SNAP shows its latest image and LIVE refreshes it once per second. An assigned HTTP or RTSP camera takes precedence.
 
 ## Quick start
 

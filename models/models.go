@@ -147,11 +147,12 @@ type RecentFile struct {
 }
 
 type PrinterWithStatus struct {
-	Config      PrinterConfig  `json:"config"`
-	Status      *PrinterStatus `json:"status"`
-	HasCamera   bool           `json:"has_camera"`
-	DisplayName string         `json:"display_name"`
-	HasWebcam   bool           `json:"has_webcam"`
+	Config          PrinterConfig  `json:"config"`
+	Status          *PrinterStatus `json:"status"`
+	HasCamera       bool           `json:"has_camera"`
+	DisplayName     string         `json:"display_name"`
+	HasWebcam       bool           `json:"has_webcam"`
+	HasSnapshotLive bool           `json:"has_snapshot_live"`
 }
 
 // PrinterStatusSummary is the trimmed, dashboard-facing view of a printer -

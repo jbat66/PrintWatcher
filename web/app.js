@@ -701,7 +701,7 @@ function updateDashboard() {
 
     updateHeaderCount();
 
-    const currentIDs = printers.map(p => `${p.config.id}:${p.has_camera}:${p.config.maintenance}`);
+    const currentIDs = printers.map(p => `${p.config.id}:${p.has_camera}:${p.has_snapshot_live}:${p.config.maintenance}`);
     const structureChanged = JSON.stringify(currentIDs) !== JSON.stringify(prevPrinterIDs);
 
     if (structureChanged) {
@@ -751,7 +751,8 @@ function renderPrinterCard(printer) {
     // Live streaming needs either a plugin-reported webcam stream URL or an
     // assigned camera (snapshot-only plugins like PrusaLink report no
     // webcam URL of their own).
-    const supportsLive = printer.has_webcam || printer.has_camera;
+    const hasCamera = printer.has_camera || printer.has_snapshot_live;
+    const supportsLive = printer.has_webcam || hasCamera;
     let wcMode = getWebcamMode(cfg.id);
     if (wcMode === 'live' && !supportsLive) wcMode = 'snapshot';
     const isPlate = wcMode === 'plate';
@@ -763,7 +764,7 @@ function renderPrinterCard(printer) {
     // front) when there's no camera assigned *and* the state wouldn't show
     // a thumbnail anyway. Plate mode never attempts the camera at all, so
     // it's gated on tryThumb alone.
-    const camAttempt = isPlate ? tryThumb : (tryThumb || printer.has_camera);
+    const camAttempt = isPlate ? tryThumb : (tryThumb || hasCamera);
     const cardClass = stateCardClass(state);
     // hideWebcamWhenUnreachable only kicks in for a genuinely unreachable
     // printer - not a blanket hide for every card regardless of state.
@@ -809,11 +810,11 @@ function renderPrinterCard(printer) {
             <div class="printer-body">
                 ${sectionHidden ? '' : `
                 <div class="webcam-wrapper">
-                    <div class="webcam-container ${camAttempt ? (isPlate || isPrinting || printer.has_camera ? '' : 'webcam-idle') : 'webcam-collapsed'}">
-                        <img class="webcam-img" data-has-camera="${!!printer.has_camera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!printer.has_camera},'${wcMode}')" onload="webcamRecovered(this)">
+                    <div class="webcam-container ${camAttempt ? (isPlate || isPrinting || hasCamera ? '' : 'webcam-idle') : 'webcam-collapsed'}">
+                        <img class="webcam-img" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
                         <div class="webcam-placeholder" style="display:none">
                             <img class="webcam-print-thumb" style="display:none" alt="">
-                            <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !printer.has_camera) ? 'No camera' : 'Camera Unreachable'}</span>
+                            <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !hasCamera) ? 'No camera' : 'Camera Unreachable'}</span>
                         </div>
                     </div>
                     <div class="webcam-mode-row">
@@ -823,7 +824,7 @@ function renderPrinterCard(printer) {
                     </div>
                 </div>`}
                 <div class="printer-stats">
-                    ${isPrinting ? renderPrintingStats(cfg, status, !sectionHidden && !isPlate && !!(printer.has_camera || printer.has_webcam)) : renderIdleStats(status, state)}
+                    ${isPrinting ? renderPrintingStats(cfg, status, !sectionHidden && !isPlate && supportsLive) : renderIdleStats(status, state)}
                 </div>
             </div>
         </div>`;
@@ -970,7 +971,7 @@ function updateCard(card, printer) {
             idleMsg.className = stateIdleMsgClass(state);
             idleMsg.textContent = stateIdleMsgText(state, detailMsg);
         }
-        setText(card, 'webcam-placeholder-text', (state === 'offline' && !printer.has_camera) ? 'No camera' : 'Camera Unreachable');
+        setText(card, 'webcam-placeholder-text', (state === 'offline' && !printer.has_camera && !printer.has_snapshot_live) ? 'No camera' : 'Camera Unreachable');
     }
 
     const stateEl = card.querySelector('[data-field="state"]');
@@ -1690,8 +1691,8 @@ function onPrinterTypeChange() {
     const isPrusalink = type === 'prusalink';
     const isU1 = type === 'snapmaker-u1';
     document.getElementById('username-group').style.display = isPrusalink ? '' : 'none';
-    document.getElementById('apikey-label').textContent = isPrusalink ? 'Password' : 'API Key';
-    document.getElementById('printer-apikey').placeholder = isPrusalink ? 'Your PrusaLink password' : isU1 ? 'Your Moonraker API key' : 'Your OctoPrint API key';
+    document.getElementById('apikey-label').textContent = isPrusalink ? 'Password' : 'API key';
+    document.getElementById('printer-apikey').placeholder = isPrusalink ? 'Your PrusaLink password' : 'API key';
     document.getElementById('printer-url').placeholder = isU1 ? 'http://printer-address:7125' : 'http://192.168.1.40';
     if (isPrusalink && !document.getElementById('printer-username').value) {
         document.getElementById('printer-username').value = 'maker';

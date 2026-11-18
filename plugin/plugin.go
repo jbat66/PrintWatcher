@@ -55,6 +55,12 @@ type Keepalive interface {
 	KeepaliveHost() (string, bool)
 }
 
+// SnapshotLive is an optional camera capability for printers exposing a
+// periodically updated image instead of a video stream.
+type SnapshotLive interface {
+	SnapshotLiveURL() string
+}
+
 // MetadataDownloader is an optional capability for plugins whose printer
 // type keeps a completed print's own metadata (material, filament used,
 // layer height, ...) embedded in the file itself rather than exposing it

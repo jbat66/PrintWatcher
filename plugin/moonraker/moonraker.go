@@ -13,6 +13,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jbat66/PrintWatcher/models"
@@ -27,9 +28,10 @@ func init() {
 }
 
 type Plugin struct {
-	base   *url.URL
-	key    string
-	client *http.Client
+	base       *url.URL
+	key        string
+	client     *http.Client
+	cameraRoot atomic.Int32 // 0 = unknown, 1 = absent, 2 = present
 }
 
 func New(cfg models.PrinterConfig) *Plugin {
@@ -41,10 +43,38 @@ func New(cfg models.PrinterConfig) *Plugin {
 }
 
 func (p *Plugin) Type() string                          { return printerType }
-func (p *Plugin) DisplayName() string                   { return "Snapmaker U1" }
-func (p *Plugin) GetPrinterName(context.Context) string { return p.DisplayName() }
+func (p *Plugin) DisplayName() string                   { return "Snapmaker U1 or other Klipper" }
+func (p *Plugin) GetPrinterName(context.Context) string { return "Klipper" }
 func (p *Plugin) GetWebcamURL() string                  { return "" }
-func (p *Plugin) GetSnapshotURL() string                { return "" }
+
+func (p *Plugin) GetSnapshotURL() string {
+	if p.cameraRoot.Load() != 2 {
+		return ""
+	}
+	return p.base.JoinPath("server/files/camera/monitor.jpg").String()
+}
+
+// SnapshotLiveURL identifies a JPEG that the dashboard can refresh for live view.
+func (p *Plugin) SnapshotLiveURL() string { return p.GetSnapshotURL() }
+
+func (p *Plugin) detectCamera(ctx context.Context) {
+	if p.cameraRoot.Load() != 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	var roots []struct{ Name string }
+	if err := p.query(ctx, "server/files/roots", nil, &roots); err != nil {
+		return
+	}
+	for _, root := range roots {
+		if root.Name == "camera" {
+			p.cameraRoot.Store(2)
+			return
+		}
+	}
+	p.cameraRoot.Store(1)
+}
 func (p *Plugin) GetThumbnailURL(ctx context.Context) string {
 	status, err := p.GetStatus(ctx)
 	if err != nil {
@@ -170,6 +200,7 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.detectCamera(ctx)
 	hotend := s.Extruder
 	switch s.Toolhead.Extruder {
 	case "extruder1":

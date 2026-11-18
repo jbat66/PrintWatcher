@@ -4,6 +4,7 @@ go 1.27.0
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.52
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.61.0
@@ -11,7 +12,6 @@ require (
 )
 
 require (
-	github.com/gorilla/websocket v1.5.3 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 )

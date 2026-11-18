@@ -454,6 +454,19 @@ func (p *Poller) GetSnapshotLiveURL(id int64) string {
 	return ""
 }
 
+// FetchSnapshotLive returns a frame from a printer whose snapshot source
+// also backs its live view.
+func (p *Poller) FetchSnapshotLive(ctx context.Context, id int64) ([]byte, error) {
+	pl, err := p.plugin(id)
+	if err != nil {
+		return nil, err
+	}
+	if camera, ok := pl.(plugin.SnapshotLive); ok {
+		return camera.SnapshotFrame(ctx)
+	}
+	return nil, fmt.Errorf("printer does not have a snapshot live camera")
+}
+
 // AuthenticatedDo proxies req through the printer's plugin, which applies
 // whatever auth scheme that printer type needs - callers don't need to
 // know or care which one.
@@ -891,6 +904,10 @@ func (p *Poller) captureCameraOrThumbnail(ctx context.Context, id int64, urlOver
 		}
 		snapshotURL = strings.TrimRight(cam.URL, "/") + "/snapshot"
 		usingCamera = true
+	} else if p.GetSnapshotLiveURL(id) != "" {
+		if data, err := p.FetchSnapshotLive(ctx, id); err == nil {
+			return data, "image/jpeg", nil
+		}
 	} else {
 		snapshotURL = p.GetSnapshotURL(id)
 	}

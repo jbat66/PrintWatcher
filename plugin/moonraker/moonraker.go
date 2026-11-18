@@ -13,6 +13,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +33,8 @@ type Plugin struct {
 	key        string
 	client     *http.Client
 	cameraRoot atomic.Int32 // 0 = unknown, 1 = absent, 2 = present
+	cameraMu   sync.Mutex   // Serializes monitor requests across viewers.
+	cameraWake time.Time
 }
 
 func New(cfg models.PrinterConfig) *Plugin {

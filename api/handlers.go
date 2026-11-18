@@ -1669,8 +1669,8 @@ func (h *Handler) handleWebcamProxy(w http.ResponseWriter, r *http.Request) {
 		webcamURL = strings.TrimRight(cam.URL, "/") + "/stream"
 		usingCamera = true
 	} else {
-		if snapshotURL := h.poller.GetSnapshotLiveURL(id); snapshotURL != "" {
-			h.serveSnapshotLive(w, r, id, snapshotURL)
+		if h.poller.GetSnapshotLiveURL(id) != "" {
+			h.serveSnapshotLive(w, r, id)
 			return
 		}
 		webcamURL = h.poller.GetWebcamURL(id)
@@ -1752,6 +1752,17 @@ func (h *Handler) handleSnapshotProxy(w http.ResponseWriter, r *http.Request) {
 		snapshotURL = strings.TrimRight(cam.URL, "/") + "/snapshot"
 		usingCamera = true
 	} else {
+		if h.poller.GetSnapshotLiveURL(id) != "" {
+			frame, err := h.poller.FetchSnapshotLive(r.Context(), id)
+			if err != nil {
+				http.Error(w, "failed to fetch a fresh camera image", http.StatusBadGateway)
+				return
+			}
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Header().Set("Cache-Control", "no-store")
+			w.Write(frame)
+			return
+		}
 		snapshotURL = h.poller.GetSnapshotURL(id)
 	}
 	if snapshotURL == "" {

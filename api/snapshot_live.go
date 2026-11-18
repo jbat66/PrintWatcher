@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -11,45 +9,19 @@ import (
 	"time"
 )
 
-func (h *Handler) serveSnapshotLive(w http.ResponseWriter, r *http.Request, id int64, address string) {
+func (h *Handler) serveSnapshotLive(w http.ResponseWriter, r *http.Request, id int64) {
 	ctx := r.Context()
 	fetch := func(ctx context.Context) ([]byte, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Cache-Control", "no-cache")
-		resp, err := h.poller.AuthenticatedDo(id, h.proxy, req)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		return readJPEGFrame(resp)
+		return h.poller.FetchSnapshotLive(ctx, id)
 	}
 	if err := streamJPEGFrames(ctx, w, fetch, time.Second); err != nil && ctx.Err() == nil {
 		http.Error(w, "failed to fetch live camera image", http.StatusBadGateway)
 	}
 }
 
-func readJPEGFrame(resp *http.Response) ([]byte, error) {
-	const maxFrame = 10 << 20
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("camera returned HTTP %d", resp.StatusCode)
-	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxFrame+1))
-	if err != nil {
-		return nil, err
-	}
-	n := len(data)
-	if n < 4 || n > maxFrame || data[0] != 0xff || data[1] != 0xd8 || data[n-2] != 0xff || data[n-1] != 0xd9 {
-		return nil, fmt.Errorf("camera did not return a complete JPEG")
-	}
-	return data, nil
-}
-
 func streamJPEGFrames(ctx context.Context, w http.ResponseWriter, fetch func(context.Context) ([]byte, error), interval time.Duration) error {
 	load := func() ([]byte, error) {
-		frameCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		frameCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		return fetch(frameCtx)
 	}

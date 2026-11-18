@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.17.4
+
+- Wake the Snapmaker U1 built-in camera on demand and wait for a fresh JPEG for SNAP and LIVE.
+
 ## v2026.11.17.3
 
 - Advertise the built-in Klipper camera as LIVE-capable once discovered.

@@ -59,6 +59,7 @@ type Keepalive interface {
 // periodically updated image instead of a video stream.
 type SnapshotLive interface {
 	SnapshotLiveURL() string
+	SnapshotFrame(context.Context) ([]byte, error)
 }
 
 // MetadataDownloader is an optional capability for plugins whose printer

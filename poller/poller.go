@@ -1056,6 +1056,7 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 	skip := pp != nil && skipUnpoweredPoll(pp, cached, plugs)
 	var status *models.PrinterStatus
 	var err error
+	snapshotLiveChanged := false
 	if !skip {
 		live, hasSnapshotLive := pl.(plugin.SnapshotLive)
 		var prevLiveURL string
@@ -1063,9 +1064,7 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 			prevLiveURL = live.SnapshotLiveURL()
 		}
 		status, err = pl.GetStatus(ctx)
-		if hasSnapshotLive && prevLiveURL != live.SnapshotLiveURL() {
-			p.BroadcastRefresh()
-		}
+		snapshotLiveChanged = hasSnapshotLive && prevLiveURL != live.SnapshotLiveURL()
 		if pp != nil {
 			pp.lastRequest = time.Now()
 		}
@@ -1160,6 +1159,9 @@ func (p *Poller) poll(ctx context.Context, id int64, pl plugin.PrinterPlugin) {
 	p.checkErrorNotify(ctx, id, prevState, status)
 
 	p.broadcast(id, status)
+	if snapshotLiveChanged {
+		p.BroadcastRefresh()
+	}
 	p.publishMQTTState(ctx, id, prevState, status)
 }
 

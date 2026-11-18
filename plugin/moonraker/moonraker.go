@@ -168,11 +168,14 @@ type objectStatus struct {
 		Duration                 float64 `json:"print_duration"`
 		Filament                 float64 `json:"filament_used"`
 		Info                     struct {
-			Current int `json:"current_layer"`
-			Total   int `json:"total_layer"`
+			Current *int `json:"current_layer"`
+			Total   int  `json:"total_layer"`
 		}
 	} `json:"print_stats"`
 	SD        struct{ Progress float64 } `json:"virtual_sdcard"`
+	GcodeMove struct {
+		Position []float64 `json:"gcode_position"`
+	} `json:"gcode_move"`
 	Toolhead  struct{ Extruder string }
 	Extruder  heater
 	Extruder1 heater
@@ -184,7 +187,7 @@ type objectStatus struct {
 
 func (p *Plugin) status(ctx context.Context) (objectStatus, error) {
 	var result struct{ Status objectStatus }
-	query := url.Values{"webhooks": {""}, "print_stats": {""}, "virtual_sdcard": {"progress"}, "toolhead": {"extruder"}}
+	query := url.Values{"webhooks": {""}, "print_stats": {""}, "virtual_sdcard": {"progress"}, "toolhead": {"extruder"}, "gcode_move": {"gcode_position"}}
 	for _, name := range []string{"extruder", "extruder1", "extruder2", "extruder3", "heater_bed", "temperature_sensor cavity"} {
 		query.Set(name, "temperature,target")
 	}
@@ -247,7 +250,10 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 	job := &models.JobInfo{
 		FileName: path.Base(s.Print.Filename), FilePath: s.Print.Filename, JobState: jobState,
 		Progress: progress * 100, ElapsedSecs: int(s.Print.Duration), FilamentUsedMM: s.Print.Filament,
-		CurrentLayer: s.Print.Info.Current, TotalLayers: s.Print.Info.Total,
+		TotalLayers: s.Print.Info.Total,
+	}
+	if s.Print.Info.Current != nil {
+		job.CurrentLayer = *s.Print.Info.Current
 	}
 	out.Job = job
 	if out.State != models.StatePrinting && out.State != models.StatePaused {
@@ -259,9 +265,11 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 		job.RemainingSecs = job.EstimatedTotal - job.ElapsedSecs
 	}
 	var metadata struct {
-		EstimatedTime float64 `json:"estimated_time"`
-		LayerCount    int     `json:"layer_count"`
-		Thumbnails    []struct {
+		EstimatedTime    float64  `json:"estimated_time"`
+		LayerCount       int      `json:"layer_count"`
+		FirstLayerHeight *float64 `json:"first_layer_height"`
+		LayerHeight      float64  `json:"layer_height"`
+		Thumbnails       []struct {
 			Width        int
 			RelativePath string `json:"relative_path"`
 		}
@@ -271,6 +279,16 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 	if p.query(metaCtx, "server/files/metadata", url.Values{"filename": {job.FilePath}}, &metadata) == nil {
 		if job.TotalLayers == 0 {
 			job.TotalLayers = metadata.LayerCount
+		}
+		// Some slicers leave Klipper's current_layer unset. Fluidd estimates
+		// the layer from the commanded Z and the sliced file's layer heights.
+		if s.Print.Info.Current == nil && s.Print.Duration > 0 &&
+			len(s.GcodeMove.Position) >= 3 && metadata.FirstLayerHeight != nil && metadata.LayerHeight > 0 {
+			layer := math.Ceil((s.GcodeMove.Position[2]-*metadata.FirstLayerHeight)/metadata.LayerHeight + 1)
+			if job.TotalLayers > 0 {
+				layer = min(layer, float64(job.TotalLayers))
+			}
+			job.CurrentLayer = int(max(0, layer))
 		}
 		if job.EstimatedTotal == 0 && metadata.EstimatedTime > 0 {
 			job.EstimatedTotal = int(metadata.EstimatedTime)

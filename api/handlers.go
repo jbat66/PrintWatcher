@@ -136,13 +136,14 @@ func (h *Handler) listPrinters(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) buildPrinterWithStatus(p models.PrinterConfig, statuses map[int64]*models.PrinterStatus) models.PrinterWithStatus {
+	hasSnapshotLive := h.poller.GetSnapshotLiveURL(p.ID) != ""
 	return models.PrinterWithStatus{
 		Config:          p,
 		Status:          statuses[p.ID],
 		HasCamera:       h.hasCameraAssigned(p.ID),
 		DisplayName:     h.poller.GetDisplayName(p.ID),
-		HasWebcam:       h.poller.GetWebcamURL(p.ID) != "",
-		HasSnapshotLive: h.poller.GetSnapshotLiveURL(p.ID) != "",
+		HasWebcam:       hasSnapshotLive || h.poller.GetWebcamURL(p.ID) != "",
+		HasSnapshotLive: hasSnapshotLive,
 	}
 }
 

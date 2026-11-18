@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.17.3
+
+- Advertise the built-in Klipper camera as LIVE-capable once discovered.
+- Estimate the current Klipper layer from commanded Z and slicer metadata when the firmware omits it.
+
 ## v2026.11.17.2
 
 - Use the Snapmaker U1 built-in camera for SNAP and one-frame-per-second LIVE view.

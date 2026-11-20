@@ -29,12 +29,15 @@ func init() {
 }
 
 type Plugin struct {
-	base       *url.URL
-	key        string
-	client     *http.Client
-	cameraRoot atomic.Int32 // 0 = unknown, 1 = absent, 2 = present
-	cameraMu   sync.Mutex   // Serializes monitor requests across viewers.
-	cameraWake time.Time
+	base         *url.URL
+	key          string
+	client       *http.Client
+	cameraRoot   atomic.Int32 // 0 = unknown, 1 = absent, 2 = present
+	cameraMu     sync.Mutex   // Serializes monitor requests across viewers.
+	cameraWake   time.Time
+	etaMu        sync.Mutex
+	etaHistoryAt time.Time
+	etaHistory   []completedPrint
 }
 
 func New(cfg models.PrinterConfig) *Plugin {
@@ -293,8 +296,16 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 			}
 			job.CurrentLayer = int(max(0, layer))
 		}
-		if job.EstimatedTotal == 0 && metadata.EstimatedTime > 0 {
-			job.EstimatedTotal = int(metadata.EstimatedTime)
+		baseline := metadata.EstimatedTime
+		if actual := p.completedDuration(ctx, job.FilePath); actual > 0 {
+			baseline = actual
+		}
+		// File bytes are not proportional to printing time. Prefer a completed
+		// run of this unchanged file, then its slicer estimate. If either has
+		// already been exceeded, retain the file-based fallback rather than
+		// reporting zero remaining while the printer is still working.
+		if baseline > s.Print.Duration {
+			job.EstimatedTotal = int(math.Ceil(baseline))
 			job.RemainingSecs = max(0, job.EstimatedTotal-job.ElapsedSecs)
 		}
 		width := 0

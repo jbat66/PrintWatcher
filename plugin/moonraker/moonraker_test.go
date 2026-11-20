@@ -78,3 +78,53 @@ func TestU1StatusAndTerminalJob(t *testing.T) {
 		t.Fatalf("expected a finished job for the completion checkpoint, got %+v, %v", status, err)
 	}
 }
+
+func TestRemainingTimeSources(t *testing.T) {
+	for _, tc := range []struct {
+		name, metadata, history string
+		remaining               int
+	}{
+		{"slicer before file bytes", `{"estimated_time":1416}`, `[]`, 336},
+		{"completed unchanged file", `{"estimated_time":1416}`, `[{"filename":"test.gcode","exists":true,"status":"completed","print_duration":1605,"total_duration":1724}]`, 525},
+		{"ignore cancelled changed and other files", `{"estimated_time":1416}`, `[{"filename":"test.gcode","exists":true,"status":"cancelled","print_duration":2000},{"filename":"test.gcode","exists":false,"status":"completed","print_duration":2000},{"filename":"other.gcode","exists":true,"status":"completed","print_duration":2000}]`, 336},
+		{"missing slicer", `{}`, `[]`, 1374},
+		{"exceeded slicer", `{"estimated_time":1000}`, `[]`, 1374},
+		{"history unavailable", `{"estimated_time":1416}`, ``, 336},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var historyCalls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/printer/objects/query":
+					fmt.Fprint(w, `{"result":{"status":{"webhooks":{"state":"ready"},"print_stats":{"state":"printing","filename":"test.gcode","print_duration":1080},"virtual_sdcard":{"progress":0.44}}}}`)
+				case "/server/files/metadata":
+					fmt.Fprintf(w, `{"result":%s}`, tc.metadata)
+				case "/server/history/list":
+					historyCalls.Add(1)
+					if tc.history == "" {
+						http.Error(w, "unsupported", 404)
+						return
+					}
+					fmt.Fprintf(w, `{"result":{"jobs":%s}}`, tc.history)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			p := New(models.PrinterConfig{URL: server.URL})
+			p.client = server.Client()
+			for range 2 {
+				status, err := p.GetStatus(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if status.Job.RemainingSecs != tc.remaining || status.Job.EstimatedTotal != 1080+tc.remaining {
+					t.Fatalf("unexpected timing: %+v; want remaining %d", status.Job, tc.remaining)
+				}
+			}
+			if historyCalls.Load() != 1 {
+				t.Fatalf("history requested %d times", historyCalls.Load())
+			}
+		})
+	}
+}

@@ -653,6 +653,12 @@ header .printer-count {
     }
 }
 
+.stat-fahrenheit {
+    font-size: 0.65em;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
 .stat-unit {
     font-size: 0.7rem;
     color: var(--text-secondary);

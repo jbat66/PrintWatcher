@@ -839,10 +839,10 @@ function renderPrintingStats(cfg, status, hasRealCam) {
     const temps = status.temps;
 
     const tempCells = [];
-    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.hotend_target)}&deg;C</span></div></div>`);
-    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${Math.round(temps.bed_target)}&deg;C</span></div></div>`);
+    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${temperatureReading(temps.hotend_actual, `${Math.round(temps.hotend_target)}°C`)}</div></div>`);
+    tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${temperatureReading(temps.bed_actual, `${Math.round(temps.bed_target)}°C`)}</div></div>`);
     if (temps.has_chamber) {
-        tempCells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${Math.round(temps.chamber_actual)}<span class="stat-unit">&deg;C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '&deg;C' : 'off'}</span></div></div>`);
+        tempCells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
     }
 
     let layerCell = '';
@@ -891,10 +891,10 @@ function renderIdleStats(status, state) {
     let tempsHTML = '';
     if (temps && state !== 'offline' && state !== 'disconnected') {
         const cells = [];
-        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${Math.round(temps.hotend_actual)}<span class="stat-unit">&deg;C / ${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '&deg;C' : 'off'}</span></div></div>`);
-        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${Math.round(temps.bed_actual)}<span class="stat-unit">&deg;C / ${temps.bed_target > 0 ? Math.round(temps.bed_target) + '&deg;C' : 'off'}</span></div></div>`);
+        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${temperatureReading(temps.hotend_actual, `${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '°C' : 'off'}`)}</div></div>`);
+        cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${temperatureReading(temps.bed_actual, `${temps.bed_target > 0 ? Math.round(temps.bed_target) + '°C' : 'off'}`)}</div></div>`);
         if (temps.has_chamber) {
-            cells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${Math.round(temps.chamber_actual)}<span class="stat-unit">&deg;C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '&deg;C' : 'off'}</span></div></div>`);
+            cells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
         }
         if (totalWatts(status.power) > 0) {
             cells.push(`<div class="stat-box"><div class="stat-label">Power</div><div class="stat-value" data-field="watts">${Math.round(totalWatts(status.power))}<span class="stat-unit">W</span></div></div>`);
@@ -1028,10 +1028,10 @@ function updateCard(card, printer) {
         setText(card, 'elapsed', formatTime(job.elapsed_secs));
         setText(card, 'remaining', formatTime(job.remaining_secs));
         setText(card, 'eta', computeETA(job.remaining_secs));
-        setStatValue(card, 'hotend', Math.round(temps.hotend_actual), `°C / ${Math.round(temps.hotend_target)}°C`);
-        setStatValue(card, 'bed', Math.round(temps.bed_actual), `°C / ${Math.round(temps.bed_target)}°C`);
+        setTemperature(card, 'hotend', temps.hotend_actual, `${Math.round(temps.hotend_target)}°C`);
+        setTemperature(card, 'bed', temps.bed_actual, `${Math.round(temps.bed_target)}°C`);
         if (temps.has_chamber) {
-            setStatValue(card, 'chamber', Math.round(temps.chamber_actual), `°C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`);
+            setTemperature(card, 'chamber', temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`);
         }
         if (job.total_layers > 0) {
             setStatValue(card, 'layer', job.current_layer, `/ ${job.total_layers}`);
@@ -1041,10 +1041,10 @@ function updateCard(card, printer) {
         }
     } else if (status && status.temps) {
         const temps = status.temps;
-        setStatValue(card, 'hotend', Math.round(temps.hotend_actual), `°C / ${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '°C' : 'off'}`);
-        setStatValue(card, 'bed', Math.round(temps.bed_actual), `°C / ${temps.bed_target > 0 ? Math.round(temps.bed_target) + '°C' : 'off'}`);
+        setTemperature(card, 'hotend', temps.hotend_actual, `${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '°C' : 'off'}`);
+        setTemperature(card, 'bed', temps.bed_actual, `${temps.bed_target > 0 ? Math.round(temps.bed_target) + '°C' : 'off'}`);
         if (temps.has_chamber) {
-            setStatValue(card, 'chamber', Math.round(temps.chamber_actual), `°C / ${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`);
+            setTemperature(card, 'chamber', temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`);
         }
         if (totalWatts(status.power) > 0) {
             setStatValue(card, 'watts', Math.round(totalWatts(status.power)), 'W');
@@ -1055,6 +1055,16 @@ function updateCard(card, printer) {
 function setText(card, field, value) {
     const el = card.querySelector(`[data-field="${field}"]`);
     if (el) el.textContent = value;
+}
+
+// Convert the unrounded sensor value, rounding each display independently.
+function temperatureReading(celsius, target) {
+    return `${Math.round(celsius)}<span class="stat-unit">&deg;C</span> <span class="stat-fahrenheit">(${Math.round(celsius * 9 / 5 + 32)}&deg;F)</span><span class="stat-unit"> / ${target}</span>`;
+}
+
+function setTemperature(card, field, celsius, target) {
+    const el = card.querySelector(`[data-field="${field}"]`);
+    if (el) el.innerHTML = temperatureReading(celsius, target);
 }
 
 function setStatValue(card, field, main, unit) {

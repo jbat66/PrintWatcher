@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.20.2
+
+- Show the current Hotend, Bed, and Chamber temperatures in Fahrenheit beside Celsius, while retaining Celsius targets.
+
 ## v2026.11.20.1
 
 - Improve Klipper remaining time and ETA using successful unchanged-file print history, then slicer timing, with file progress as a fallback.

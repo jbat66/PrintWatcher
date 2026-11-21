@@ -842,7 +842,7 @@ function renderPrintingStats(cfg, status, hasRealCam) {
     tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${temperatureReading(temps.hotend_actual, `${Math.round(temps.hotend_target)}°C`)}</div></div>`);
     tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${temperatureReading(temps.bed_actual, `${Math.round(temps.bed_target)}°C`)}</div></div>`);
     if (temps.has_chamber) {
-        tempCells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
+        tempCells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
     }
 
     let layerCell = '';
@@ -894,7 +894,7 @@ function renderIdleStats(status, state) {
         cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Hotend</div><div class="stat-value" data-field="hotend">${temperatureReading(temps.hotend_actual, `${temps.hotend_target > 0 ? Math.round(temps.hotend_target) + '°C' : 'off'}`)}</div></div>`);
         cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Bed</div><div class="stat-value" data-field="bed">${temperatureReading(temps.bed_actual, `${temps.bed_target > 0 ? Math.round(temps.bed_target) + '°C' : 'off'}`)}</div></div>`);
         if (temps.has_chamber) {
-            cells.push(`<div class="stat-box"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
+            cells.push(`<div class="stat-box stat-box-reading"><div class="stat-label">Chamber</div><div class="stat-value" data-field="chamber">${temperatureReading(temps.chamber_actual, `${temps.chamber_target > 0 ? Math.round(temps.chamber_target) + '°C' : 'off'}`)}</div></div>`);
         }
         if (totalWatts(status.power) > 0) {
             cells.push(`<div class="stat-box"><div class="stat-label">Power</div><div class="stat-value" data-field="watts">${Math.round(totalWatts(status.power))}<span class="stat-unit">W</span></div></div>`);

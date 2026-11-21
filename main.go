@@ -110,7 +110,7 @@ func main() {
 	// No ReadTimeout/WriteTimeout: SSE, webcam streams and large uploads are long-lived.
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           logRequests(nosniff(handler.RequireAuth(mux))),
+		Handler:           logRequests(nosniff(freshWebAssets(handler.RequireAuth(mux)))),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		// Request contexts derive from ctx, so cancelling it on shutdown

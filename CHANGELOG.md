@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.20.3
+
+- Fetch fresh app HTML, JavaScript, and CSS on refresh to prevent stale browser assets after updates.
+- Match Chamber temperature typography and label placement to Hotend and Bed.
+
 ## v2026.11.20.2
 
 - Show the current Hotend, Bed, and Chamber temperatures in Fahrenheit beside Celsius, while retaining Celsius targets.

@@ -821,18 +821,19 @@ function renderPrinterCard(printer) {
                 ${sectionHidden ? '' : `
                 <div class="webcam-wrapper${focusedPrinterID === cfg.id ? ' camera-focused' : ''}">
                     <div class="webcam-container ${camAttempt ? (isPlate || isPrinting || hasCamera ? '' : 'webcam-idle') : 'webcam-collapsed'}">
-                        <img class="webcam-img" ondblclick="toggleCameraFocus(${cfg.id})" onkeydown="cameraFocusKey(event,${cfg.id})" tabindex="${wcMode === 'live' ? 0 : -1}" role="${wcMode === 'live' ? 'button' : 'img'}" aria-label="${wcMode === 'live' ? 'Expand live camera; double-click to toggle' : 'Webcam'}" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
+                        <img class="webcam-img" ondblclick="cameraDoubleClick(event,${cfg.id})" onpointerdown="cameraPointerDown(event,${cfg.id})" onpointerup="cameraPointerUp(event,${cfg.id})" onpointercancel="resetCameraTap()" onkeydown="cameraFocusKey(event,${cfg.id})" tabindex="${wcMode === 'live' ? 0 : -1}" role="${wcMode === 'live' ? 'button' : 'img'}" aria-label="${wcMode === 'live' ? 'Expand live camera; double-click to toggle' : 'Webcam'}" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
                         <div class="webcam-placeholder" style="display:none">
                             <img class="webcam-print-thumb" style="display:none" alt="">
                             <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !hasCamera) ? 'No camera' : 'Camera Unreachable'}</span>
                         </div>
                     </div>
                     <div class="camera-focus-caption">
-                        <span class="camera-focus-name">${esc(cfg.name)}</span>
-                        <span class="camera-focus-label">Time Remaining</span>
+                        <span class="camera-focus-label" title="Time Remaining for ${esc(cfg.name)}">Time Remaining for ${esc(cfg.name)}</span>
                         <strong data-camera-remaining>${cameraRemaining(printer)}</strong>
-                        <span data-alert-printer="${cfg.id}"></span>
-                        <button class="btn btn-sm" onclick="closeCameraFocus()">Return to dashboard</button>
+                        <div class="camera-focus-actions">
+                            <button class="btn btn-sm" onclick="closeCameraFocus()">Return to dashboard</button>
+                            <span class="printer-alert" data-alert-printer="${cfg.id}"></span>
+                        </div>
                     </div>
                     <div class="webcam-mode-row">
                         <button class="webcam-mode-btn ${isPlate ? 'active' : ''}" ${!tryThumb ? 'disabled' : ''} onclick="event.stopPropagation();setWebcamMode(${cfg.id},'plate')">PLATE</button>
@@ -2363,6 +2364,80 @@ setInterval(updateCurrentTime, 1000);
 
 // Camera focus uses the existing image element so enlarging it keeps the stream.
 let focusedPrinterID = null;
+let mobileCameraFocus = false;
+let cameraOwnsFullscreen = false;
+let cameraOrientationRequested = false;
+let cameraTapStart = null, lastCameraTap = null, suppressCameraDoubleClickUntil = 0;
+
+function isMobileCameraDevice() {
+    const device = typeof navigator === 'undefined' ? {} : navigator;
+    return device.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod|Mobile/i.test(device.userAgent || '') ||
+        (device.maxTouchPoints > 0 && (device.platform === 'MacIntel' || window.matchMedia?.('(pointer: coarse)').matches));
+}
+
+function resetCameraTap() { cameraTapStart = null; lastCameraTap = null; }
+
+function cameraPointerDown(event, printerId) {
+    if (event.pointerType !== 'touch') return;
+    cameraTapStart = {id: printerId, x: event.clientX, y: event.clientY};
+}
+
+function cameraPointerUp(event, printerId) {
+    if (event.pointerType !== 'touch' || !cameraTapStart || cameraTapStart.id !== printerId) return;
+    const start = cameraTapStart;
+    cameraTapStart = null;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 20) { lastCameraTap = null; return; }
+    const now = Date.now();
+    if (lastCameraTap?.id === printerId && now - lastCameraTap.time <= 350 &&
+        Math.hypot(event.clientX - lastCameraTap.x, event.clientY - lastCameraTap.y) <= 30) {
+        event.preventDefault();
+        lastCameraTap = null;
+        suppressCameraDoubleClickUntil = now + 700;
+        toggleCameraFocus(printerId);
+    } else lastCameraTap = {id: printerId, time: now, x: event.clientX, y: event.clientY};
+}
+
+function cameraDoubleClick(event, printerId) {
+    event.preventDefault();
+    if (Date.now() < suppressCameraDoubleClickUntil) return;
+    toggleCameraFocus(printerId);
+}
+
+function currentCameraFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }
+
+function exitCameraFullscreen() {
+    try {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (currentCameraFullscreen() && exit) Promise.resolve(exit.call(document)).catch(() => {});
+    } catch (e) {}
+}
+
+function enterMobileCameraFullscreen() {
+    // Fullscreen the stable document root: status updates can replace a card.
+    // CSS limits the visible content to its focused camera.
+    if (currentCameraFullscreen()) return;
+    const root = document.documentElement;
+    const request = root?.requestFullscreen;
+    if (!request) return; // Video-only CSS landscape remains available.
+    try {
+        Promise.resolve(request.call(root, {navigationUI: 'hide'})).then(() => {
+            // A request can finish after a quick return or switch to another
+            // camera. Adopt it only while a mobile camera is still focused.
+            if (!mobileCameraFocus) { exitCameraFullscreen(); return; }
+            cameraOwnsFullscreen = currentCameraFullscreen() === root;
+            if (cameraOwnsFullscreen && !cameraOrientationRequested && window.screen?.orientation?.lock) {
+                cameraOrientationRequested = true;
+                Promise.resolve(window.screen.orientation.lock('landscape')).catch(() => {});
+            }
+        }).catch(() => {}); // Unsupported/blocked fullscreen uses the CSS fallback.
+    } catch (e) {}
+}
+
+function cameraFullscreenChanged() {
+    if (cameraOwnsFullscreen && !currentCameraFullscreen()) closeCameraFocus();
+}
+document.addEventListener('fullscreenchange', cameraFullscreenChanged);
+document.addEventListener('webkitfullscreenchange', cameraFullscreenChanged);
 
 function cameraRemaining(printer) {
     const status = printer.status;
@@ -2376,7 +2451,9 @@ function toggleCameraFocus(printerId) {
     if (getWebcamMode(printerId) !== 'live') return;
     closeCameraFocus();
     focusedPrinterID = printerId;
+    mobileCameraFocus = !!isMobileCameraDevice();
     refreshCameraFocus();
+    if (mobileCameraFocus) enterMobileCameraFullscreen();
 }
 
 function cameraFocusKey(event, printerId) {
@@ -2389,7 +2466,13 @@ function cameraFocusKey(event, printerId) {
 function closeCameraFocus() {
     const oldID = focusedPrinterID;
     focusedPrinterID = null;
-    document.querySelectorAll('.camera-focused').forEach(el => el.classList.remove('camera-focused'));
+    mobileCameraFocus = false;
+    if (cameraOrientationRequested) {
+        cameraOrientationRequested = false;
+        try { window.screen?.orientation?.unlock?.(); } catch (e) {}
+    }
+    if (cameraOwnsFullscreen) { cameraOwnsFullscreen = false; exitCameraFullscreen(); }
+    document.querySelectorAll('.camera-focused').forEach(el => { el.classList.remove('camera-focused'); el.classList.remove('camera-mobile'); });
     document.body.classList.remove('camera-focus-open');
     if (oldID !== null) document.querySelector(`[data-printer-id="${oldID}"] .webcam-img`)?.focus();
 }
@@ -2402,6 +2485,8 @@ function refreshCameraFocus() {
         closeCameraFocus(); return;
     }
     wrapper.classList.add('camera-focused');
+    if (mobileCameraFocus) wrapper.classList.add('camera-mobile');
+    else wrapper.classList.remove('camera-mobile');
     document.body.classList.add('camera-focus-open');
     wrapper.querySelector('[data-camera-remaining]').textContent = cameraRemaining(printer);
 }

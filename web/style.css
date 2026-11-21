@@ -1199,8 +1199,16 @@ body.camera-focus-open { overflow: hidden; }
     flex: 0 0 auto;
     gap: 0.2rem;
 }
-.camera-focus-name { font-size: 1rem; color: var(--text-secondary); }
-.camera-focus-label { font-size: 1.15rem; }
+.camera-focus-label {
+    font-size: 1.15rem;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.camera-focus-actions { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.camera-focus-actions .printer-alert { flex-wrap: nowrap; }
+.camera-focus-actions .printer-sound-status { white-space: nowrap; }
 [data-camera-remaining] {
     font-size: clamp(2.5rem, 7vw, 5rem);
     line-height: 1.1;
@@ -1221,3 +1229,20 @@ body.camera-focus-open { overflow: hidden; }
 
 .printer-alert { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .printer-sound-status { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* Phones use a video-only landscape canvas, even if native fullscreen or
+   orientation locking is unavailable (for example on some iPhone browsers). */
+.webcam-wrapper.camera-focused.camera-mobile { padding: 0; gap: 0; }
+.camera-focused.camera-mobile .camera-focus-caption { display: none; }
+.camera-focused.camera-mobile .webcam-container { border-radius: 0; }
+.camera-mobile .webcam-img { touch-action: none; user-select: none; -webkit-user-select: none; }
+@media (orientation: portrait) {
+    .camera-focused.camera-mobile .webcam-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100dvh;
+        height: 100dvw;
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+}

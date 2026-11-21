@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.21.3
+
+- Condense the enlarged desktop camera caption and controls without changing the remaining-time value size.
+- Add mobile double-tap video-only landscape viewing, native fullscreen/orientation requests where supported, and a rotated fallback.
+
 ## v2026.11.21.2
 
 - Include U1/Klipper in Upload with printer-specific G-code validation and storage routing.

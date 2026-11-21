@@ -155,3 +155,86 @@ test('printer-specific file type validation blocks Klipper BGCODE before sending
     await d.ctx.submitUpload({preventDefault(){}});assert.equal(d.fetched.length,0);assert.match(d.element('upload-result').textContent,/gcode files only/);
     d.element('upload-printer').value='2';d.ctx.updateUploadFileTypes();assert.equal(d.element('upload-file').accept,'.gcode,.bgcode');
 });
+
+test('mobile double tap enters video-only mode and ignores the synthesized double click', () => {
+    const d = dashboard(); d.ctx.navigator = {userAgent:'iPhone'};
+    const tap = () => {
+        const e = {pointerType:'touch',clientX:25,clientY:35,preventDefault(){}};
+        d.ctx.cameraPointerDown(e,1);d.ctx.cameraPointerUp(e,1);
+    };
+    tap();assert(!d.classes.has('camera-focused'));
+    d.advance(100);tap();assert(d.classes.has('camera-mobile'));
+    d.ctx.cameraDoubleClick({preventDefault(){}},1);assert(d.classes.has('camera-focused'));
+    d.advance(800);tap();d.advance(100);tap();assert(!d.classes.has('camera-focused'));assert(!d.classes.has('camera-mobile'));
+});
+
+test('touch drags and distant taps do not enter camera focus', () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    d.ctx.cameraPointerDown({pointerType:'touch',clientX:0,clientY:0},1);
+    d.ctx.cameraPointerUp({pointerType:'touch',clientX:100,clientY:100},1);
+    assert(!d.classes.has('camera-focused'));
+    for(const x of [0,100]) {
+        const e={pointerType:'touch',clientX:x,clientY:0,preventDefault(){}};
+        d.ctx.cameraPointerDown(e,1);d.ctx.cameraPointerUp(e,1);d.advance(100);
+    }
+    assert(!d.classes.has('camera-focused'));
+});
+
+test('mobile requests native fullscreen and landscape then releases both on return', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    let locks=0,unlocks=0,exits=0;
+    const root={requestFullscreen(){d.ctx.document.fullscreenElement=root;return Promise.resolve();}};
+    d.ctx.document.documentElement=root;
+    d.ctx.document.exitFullscreen=()=>{exits++;d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.window.screen={orientation:{lock(orientation){assert.equal(orientation,'landscape');locks++;return Promise.resolve();},unlock(){unlocks++;}}};
+    d.ctx.toggleCameraFocus(1);await settle();assert.equal(locks,1);assert(d.classes.has('camera-mobile'));
+    d.ctx.closeCameraFocus();assert.equal(exits,1);assert.equal(unlocks,1);assert(!d.classes.has('camera-focused'));
+});
+
+test('unsupported fullscreen or orientation locking retains the landscape fallback', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'iPhone'};
+    d.ctx.document.documentElement={requestFullscreen(){return Promise.reject(Error('unsupported'));}};
+    d.ctx.toggleCameraFocus(1);await settle();assert(d.classes.has('camera-mobile'));
+    d.ctx.closeCameraFocus();assert(!d.classes.has('camera-focused'));
+});
+
+test('native fullscreen exit restores the dashboard', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    const root={requestFullscreen(){d.ctx.document.fullscreenElement=root;return Promise.resolve();}};
+    d.ctx.document.documentElement=root;
+    d.ctx.toggleCameraFocus(1);await settle();
+    d.ctx.document.fullscreenElement=null;d.ctx.cameraFullscreenChanged();assert(!d.classes.has('camera-mobile'));assert(!d.classes.has('camera-focused'));
+});
+
+test('a late fullscreen request cannot reopen a camera after return', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    let resolveRequest;
+    const root={requestFullscreen(){return new Promise(resolve=>{resolveRequest=resolve;});}};
+    d.ctx.document.documentElement=root;
+    d.ctx.document.exitFullscreen=()=>{d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.toggleCameraFocus(1);d.ctx.closeCameraFocus();
+    d.ctx.document.fullscreenElement=root;resolveRequest();await settle();
+    assert.equal(d.ctx.document.fullscreenElement,null);assert(!d.classes.has('camera-focused'));
+});
+
+test('orientation lock rejection keeps video-only mode and returns cleanly', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    const root={requestFullscreen(){d.ctx.document.fullscreenElement=root;return Promise.resolve();}};
+    d.ctx.document.documentElement=root;
+    d.ctx.window.screen={orientation:{lock(){return Promise.reject(Error('not allowed'));},unlock(){}}};
+    d.ctx.document.exitFullscreen=()=>{d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.toggleCameraFocus(1);await settle();assert(d.classes.has('camera-mobile'));
+    d.ctx.closeCameraFocus();assert.equal(d.ctx.document.fullscreenElement,null);
+});
+
+test('a late fullscreen request is adopted by a newly focused mobile camera', async () => {
+    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
+    let resolveRequest, requests=0;
+    const root={requestFullscreen(){if(requests++)return Promise.reject(Error('already pending'));return new Promise(resolve=>{resolveRequest=resolve;});}};
+    d.ctx.document.documentElement=root;
+    d.ctx.document.exitFullscreen=()=>{d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.toggleCameraFocus(1);d.ctx.toggleCameraFocus(2);
+    d.ctx.document.fullscreenElement=root;resolveRequest();await settle();
+    assert(d.classes.has('camera-mobile'));
+    d.ctx.closeCameraFocus();assert.equal(d.ctx.document.fullscreenElement,null);
+});

@@ -44,7 +44,7 @@ function dashboard() {
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
-test('camera double click toggles focus and retains live remaining time', () => {
+test('single camera activation toggles focus and retains live remaining time', () => {
     const d = dashboard();
     d.ctx.toggleCameraFocus(1);
     assert(d.classes.has('camera-focused'));
@@ -156,28 +156,14 @@ test('printer-specific file type validation blocks Klipper BGCODE before sending
     d.element('upload-printer').value='2';d.ctx.updateUploadFileTypes();assert.equal(d.element('upload-file').accept,'.gcode,.bgcode');
 });
 
-test('mobile double tap enters video-only mode and ignores the synthesized double click', () => {
+test('a single activation enters mobile video-only mode and the next returns', () => {
     const d = dashboard(); d.ctx.navigator = {userAgent:'iPhone'};
-    const tap = () => {
-        const e = {pointerType:'touch',clientX:25,clientY:35,preventDefault(){}};
-        d.ctx.cameraPointerDown(e,1);d.ctx.cameraPointerUp(e,1);
-    };
-    tap();assert(!d.classes.has('camera-focused'));
-    d.advance(100);tap();assert(d.classes.has('camera-mobile'));
-    d.ctx.cameraDoubleClick({preventDefault(){}},1);assert(d.classes.has('camera-focused'));
-    d.advance(800);tap();d.advance(100);tap();assert(!d.classes.has('camera-focused'));assert(!d.classes.has('camera-mobile'));
-});
-
-test('touch drags and distant taps do not enter camera focus', () => {
-    const d=dashboard();d.ctx.navigator={userAgent:'Android'};
-    d.ctx.cameraPointerDown({pointerType:'touch',clientX:0,clientY:0},1);
-    d.ctx.cameraPointerUp({pointerType:'touch',clientX:100,clientY:100},1);
-    assert(!d.classes.has('camera-focused'));
-    for(const x of [0,100]) {
-        const e={pointerType:'touch',clientX:x,clientY:0,preventDefault(){}};
-        d.ctx.cameraPointerDown(e,1);d.ctx.cameraPointerUp(e,1);d.advance(100);
-    }
-    assert(!d.classes.has('camera-focused'));
+    d.ctx.toggleCameraFocus(1);assert(d.classes.has('camera-mobile'));
+    d.ctx.toggleCameraFocus(1);assert(!d.classes.has('camera-focused'));assert(!d.classes.has('camera-mobile'));
+    const source=fs.readFileSync(__dirname+'/app.js','utf8');
+    assert(source.includes('onclick="toggleCameraFocus(${cfg.id})"'));
+    assert(!source.includes('ondblclick='));
+    assert(!source.includes('onpointerup='));
 });
 
 test('mobile requests native fullscreen and landscape then releases both on return', async () => {
@@ -237,4 +223,21 @@ test('a late fullscreen request is adopted by a newly focused mobile camera', as
     d.ctx.document.fullscreenElement=root;resolveRequest();await settle();
     assert(d.classes.has('camera-mobile'));
     d.ctx.closeCameraFocus();assert.equal(d.ctx.document.fullscreenElement,null);
+});
+
+
+test('a recovered camera becomes visible after an earlier failed image request', () => {
+    const app=fs.readFileSync(__dirname+'/app.js','utf8');
+    const ctx={};vm.createContext(ctx);
+    vm.runInContext(app.slice(app.indexOf('function webcamRecovered('),app.indexOf('function webcamSrc(')),ctx);
+    const placeholder={style:{display:'flex'}}, beside={style:{display:'none'}};
+    let uncollapsed=false;
+    const container={querySelector:()=>placeholder,classList:{remove(name){uncollapsed=name==='webcam-collapsed';}},closest:()=>({querySelector:()=>beside})};
+    for(const mode of ['small','enlarged']) {
+        const image={style:{display:'none'},parentElement:container};
+        ctx.webcamRecovered(image);
+        assert.equal(image.style.display,'',mode);
+        assert.equal(placeholder.style.display,'none');
+        assert(uncollapsed);assert.equal(beside.style.display,'');
+    }
 });

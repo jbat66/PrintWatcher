@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.21.4
+
+- Toggle enlarged camera viewing with one click or tap on desktop and mobile.
+- Restore camera image visibility after a failed request recovers, preventing a hidden image and hidden placeholder from leaving a black view.
+
 ## v2026.11.21.3
 
 - Condense the enlarged desktop camera caption and controls without changing the remaining-time value size.

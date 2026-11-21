@@ -652,6 +652,9 @@ function webcamError(img, isPrinting, tryThumb, hasCamera, mode) {
 // non-error case, where it's a harmless no-op (everything's already in the
 // state it's setting).
 function webcamRecovered(img) {
+    // A failed request hides this image. Restoring only the placeholder leaves
+    // a recovered stream invisible in both the card and enlarged view.
+    img.style.display = '';
     const container = img.parentElement;
     container.querySelector('.webcam-placeholder').style.display = 'none';
     container.classList.remove('webcam-collapsed');
@@ -821,7 +824,7 @@ function renderPrinterCard(printer) {
                 ${sectionHidden ? '' : `
                 <div class="webcam-wrapper${focusedPrinterID === cfg.id ? ' camera-focused' : ''}">
                     <div class="webcam-container ${camAttempt ? (isPlate || isPrinting || hasCamera ? '' : 'webcam-idle') : 'webcam-collapsed'}">
-                        <img class="webcam-img" ondblclick="cameraDoubleClick(event,${cfg.id})" onpointerdown="cameraPointerDown(event,${cfg.id})" onpointerup="cameraPointerUp(event,${cfg.id})" onpointercancel="resetCameraTap()" onkeydown="cameraFocusKey(event,${cfg.id})" tabindex="${wcMode === 'live' ? 0 : -1}" role="${wcMode === 'live' ? 'button' : 'img'}" aria-label="${wcMode === 'live' ? 'Expand live camera; double-click to toggle' : 'Webcam'}" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
+                        <img class="webcam-img" onclick="toggleCameraFocus(${cfg.id})" onkeydown="cameraFocusKey(event,${cfg.id})" tabindex="${wcMode === 'live' ? 0 : -1}" role="${wcMode === 'live' ? 'button' : 'img'}" aria-label="${wcMode === 'live' ? 'Expand live camera; click or tap to toggle' : 'Webcam'}" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
                         <div class="webcam-placeholder" style="display:none">
                             <img class="webcam-print-thumb" style="display:none" alt="">
                             <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !hasCamera) ? 'No camera' : 'Camera Unreachable'}</span>
@@ -2367,40 +2370,11 @@ let focusedPrinterID = null;
 let mobileCameraFocus = false;
 let cameraOwnsFullscreen = false;
 let cameraOrientationRequested = false;
-let cameraTapStart = null, lastCameraTap = null, suppressCameraDoubleClickUntil = 0;
 
 function isMobileCameraDevice() {
     const device = typeof navigator === 'undefined' ? {} : navigator;
     return device.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod|Mobile/i.test(device.userAgent || '') ||
         (device.maxTouchPoints > 0 && (device.platform === 'MacIntel' || window.matchMedia?.('(pointer: coarse)').matches));
-}
-
-function resetCameraTap() { cameraTapStart = null; lastCameraTap = null; }
-
-function cameraPointerDown(event, printerId) {
-    if (event.pointerType !== 'touch') return;
-    cameraTapStart = {id: printerId, x: event.clientX, y: event.clientY};
-}
-
-function cameraPointerUp(event, printerId) {
-    if (event.pointerType !== 'touch' || !cameraTapStart || cameraTapStart.id !== printerId) return;
-    const start = cameraTapStart;
-    cameraTapStart = null;
-    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 20) { lastCameraTap = null; return; }
-    const now = Date.now();
-    if (lastCameraTap?.id === printerId && now - lastCameraTap.time <= 350 &&
-        Math.hypot(event.clientX - lastCameraTap.x, event.clientY - lastCameraTap.y) <= 30) {
-        event.preventDefault();
-        lastCameraTap = null;
-        suppressCameraDoubleClickUntil = now + 700;
-        toggleCameraFocus(printerId);
-    } else lastCameraTap = {id: printerId, time: now, x: event.clientX, y: event.clientY};
-}
-
-function cameraDoubleClick(event, printerId) {
-    event.preventDefault();
-    if (Date.now() < suppressCameraDoubleClickUntil) return;
-    toggleCameraFocus(printerId);
 }
 
 function currentCameraFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }

@@ -22,6 +22,21 @@ const (
 	StateDisconnected PrinterState = "disconnected"
 )
 
+// Notification sounds are bundled browser-playable MP3s. Empty means disabled.
+var NotificationSounds = []string{"AlarmSoundEffect.mp3", "ClockChimes.mp3", "Cuckoo.mp3", "RedAlert.mp3"}
+
+func ValidNotificationSound(name string) bool {
+	if name == "" {
+		return true
+	}
+	for _, sound := range NotificationSounds {
+		if name == sound {
+			return true
+		}
+	}
+	return false
+}
+
 type PrinterConfig struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -43,6 +58,7 @@ type PrinterConfig struct {
 	IdleTimeoutMinutes int     `json:"idle_timeout_minutes,omitempty"`
 	MaxBedTemp         float64 `json:"max_bed_temp,omitempty"`
 	MaxExtruderTemp    float64 `json:"max_extruder_temp,omitempty"`
+	NotificationSound  string  `json:"notification_sound"`
 }
 
 // SmartPlug is a directly-configured Tasmota device, managed independently of

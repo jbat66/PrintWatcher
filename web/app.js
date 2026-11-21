@@ -120,10 +120,13 @@ function applyStatusUpdate(printerId, status) {
     const printer = printers.find(p => p.config.id === printerId);
     if (printer) {
         printer.status = status;
+        observePrinterAlert(printer);
         const card = document.querySelector(`[data-printer-id="${printerId}"]`);
         if (card) updateCard(card, printer);
     }
     updateHeaderCount();
+    refreshCameraFocus();
+    renderBrowserAlerts();
 }
 
 function showConnectionBanner(show) {
@@ -572,12 +575,15 @@ function getWebcamMode(printerId) {
 }
 
 function setWebcamMode(printerId, mode) {
+    if (focusedPrinterID === printerId && mode !== 'live') closeCameraFocus();
     lsSet(`webcam-mode-${printerId}`, mode);
     const printer = printers.find(p => p.config.id === printerId);
     const card = document.querySelector(`[data-printer-id="${printerId}"]`);
     if (!printer || !card) return;
     card.outerHTML = renderPrinterCard(printer);
     renderIngestBanners();
+    refreshCameraFocus();
+    renderBrowserAlerts();
 }
 
 function webcamError(img, isPrinting, tryThumb, hasCamera, mode) {
@@ -685,6 +691,7 @@ async function fetchPrinters() {
 }
 
 function updateDashboard() {
+    syncPrinterAlerts();
     const list = document.getElementById('printer-list');
 
     if (!printers || printers.length === 0) {
@@ -709,6 +716,8 @@ function updateDashboard() {
         prevPrinterIDs = currentIDs;
         renderIngestBanners();
     }
+    refreshCameraFocus();
+    renderBrowserAlerts();
 }
 
 function renderMaintenanceCard(printer) {
@@ -806,16 +815,24 @@ function renderPrinterCard(printer) {
                 ${controlHTML}
                 ${filesHTML}
                 ${historyHTML}
+                <span class="printer-alert" data-alert-printer="${cfg.id}"></span>
             </div>
             <div class="printer-body">
                 ${sectionHidden ? '' : `
-                <div class="webcam-wrapper">
+                <div class="webcam-wrapper${focusedPrinterID === cfg.id ? ' camera-focused' : ''}">
                     <div class="webcam-container ${camAttempt ? (isPlate || isPrinting || hasCamera ? '' : 'webcam-idle') : 'webcam-collapsed'}">
-                        <img class="webcam-img" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
+                        <img class="webcam-img" ondblclick="toggleCameraFocus(${cfg.id})" onkeydown="cameraFocusKey(event,${cfg.id})" tabindex="${wcMode === 'live' ? 0 : -1}" role="${wcMode === 'live' ? 'button' : 'img'}" aria-label="${wcMode === 'live' ? 'Expand live camera; double-click to toggle' : 'Webcam'}" data-has-camera="${!!hasCamera}" ${camAttempt ? `src="${webcamSrc(cfg.id, wcMode)}"` : ''} alt="Webcam" onerror="webcamError(this,${isPrinting},${tryThumb},${!!hasCamera},'${wcMode}')" onload="webcamRecovered(this)">
                         <div class="webcam-placeholder" style="display:none">
                             <img class="webcam-print-thumb" style="display:none" alt="">
                             <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !hasCamera) ? 'No camera' : 'Camera Unreachable'}</span>
                         </div>
+                    </div>
+                    <div class="camera-focus-caption">
+                        <span class="camera-focus-name">${esc(cfg.name)}</span>
+                        <span class="camera-focus-label">Time Remaining</span>
+                        <strong data-camera-remaining>${cameraRemaining(printer)}</strong>
+                        <span data-alert-printer="${cfg.id}"></span>
+                        <button class="btn btn-sm" onclick="closeCameraFocus()">Return to dashboard</button>
                     </div>
                     <div class="webcam-mode-row">
                         <button class="webcam-mode-btn ${isPlate ? 'active' : ''}" ${!tryThumb ? 'disabled' : ''} onclick="event.stopPropagation();setWebcamMode(${cfg.id},'plate')">PLATE</button>
@@ -1724,6 +1741,7 @@ function openAddModal() {
     document.getElementById('printer-idle-timeout').value = '0';
     document.getElementById('printer-max-bed-temp').value = '0';
     document.getElementById('printer-max-extruder-temp').value = '0';
+    document.getElementById('printer-notification-sound').value = '';
     document.getElementById('test-btn').style.display = 'inline-flex';
     onPrinterTypeChange();
     hideTestResult();
@@ -1751,6 +1769,7 @@ async function openEditModal(id) {
     document.getElementById('printer-idle-timeout').value = cfg.idle_timeout_minutes || '0';
     document.getElementById('printer-max-bed-temp').value = cfg.max_bed_temp || '0';
     document.getElementById('printer-max-extruder-temp').value = cfg.max_extruder_temp || '0';
+    document.getElementById('printer-notification-sound').value = cfg.notification_sound || '';
     document.getElementById('test-btn').style.display = 'inline-flex';
     onPrinterTypeChange();
     hideTestResult();
@@ -1925,6 +1944,7 @@ async function savePrinter(e) {
         idle_timeout_minutes: parseInt(document.getElementById('printer-idle-timeout').value) || 0,
         max_bed_temp: parseFloat(document.getElementById('printer-max-bed-temp').value) || 0,
         max_extruder_temp: parseFloat(document.getElementById('printer-max-extruder-temp').value) || 0,
+        notification_sound: document.getElementById('printer-notification-sound').value,
         enabled: true,
     };
 
@@ -2317,6 +2337,233 @@ function updateCurrentTime() {
 
 updateCurrentTime();
 setInterval(updateCurrentTime, 1000);
+
+// Camera focus uses the existing image element so enlarging it keeps the stream.
+let focusedPrinterID = null;
+
+function cameraRemaining(printer) {
+    const status = printer.status;
+    if (!status || status.state === 'offline' || status.state === 'disconnected') return 'Unavailable';
+    if (!status.job || !['printing', 'paused'].includes(status.state)) return '—';
+    return formatTime(status.job.remaining_secs);
+}
+
+function toggleCameraFocus(printerId) {
+    if (focusedPrinterID === printerId) { closeCameraFocus(); return; }
+    if (getWebcamMode(printerId) !== 'live') return;
+    closeCameraFocus();
+    focusedPrinterID = printerId;
+    refreshCameraFocus();
+}
+
+function cameraFocusKey(event, printerId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleCameraFocus(printerId);
+    }
+}
+
+function closeCameraFocus() {
+    const oldID = focusedPrinterID;
+    focusedPrinterID = null;
+    document.querySelectorAll('.camera-focused').forEach(el => el.classList.remove('camera-focused'));
+    document.body.classList.remove('camera-focus-open');
+    if (oldID !== null) document.querySelector(`[data-printer-id="${oldID}"] .webcam-img`)?.focus();
+}
+
+function refreshCameraFocus() {
+    if (focusedPrinterID === null) return;
+    const printer = printers.find(p => p.config.id === focusedPrinterID);
+    const wrapper = document.querySelector(`[data-printer-id="${focusedPrinterID}"] .webcam-wrapper`);
+    if (!printer || printer.config.maintenance || !wrapper || getWebcamMode(focusedPrinterID) !== 'live') {
+        closeCameraFocus(); return;
+    }
+    wrapper.classList.add('camera-focused');
+    document.body.classList.add('camera-focus-open');
+    wrapper.querySelector('[data-camera-remaining]').textContent = cameraRemaining(printer);
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeCameraFocus();
+});
+
+// Browser-local state alerts: establish a baseline without sounding, ignore
+// connection failures, then repeat each pending printer's own sound until ack.
+const printerAlerts = new Map();
+const alertBuffers = new Map();
+const ALERT_REPEAT_MS = 60000;
+let alertAudioContext, activeAlertSource = null, activeAlertPrinter = null;
+let alertSoundsEnabled = false, alertSoundsMuted = false, alertAudioLoading = false;
+let alertAudioNotice = '';
+
+function observePrinterAlert(printer) {
+    const cfg = printer.config, status = printer.status;
+    if (!cfg.notification_sound || cfg.enabled === false || cfg.maintenance) {
+        acknowledgePrinterAlert(cfg.id);
+        printerAlerts.delete(cfg.id);
+        return;
+    }
+    if (!status || ['offline', 'disconnected'].includes(status.state)) return;
+    let record = printerAlerts.get(cfg.id);
+    if (!record) {
+        printerAlerts.set(cfg.id, {state: status.state, pending: false, lastPlayed: 0, generation: 0});
+        return;
+    }
+    if (record.state !== status.state) {
+        record.state = status.state;
+        record.pending = true;
+        record.lastPlayed = 0;
+        record.generation++;
+        if (activeAlertPrinter === cfg.id) stopAlertPlayback();
+    }
+}
+
+function syncPrinterAlerts() {
+    for (const id of printerAlerts.keys()) {
+        if (!printers.some(p => p.config.id === id)) {
+            acknowledgePrinterAlert(id);
+            printerAlerts.delete(id);
+        }
+    }
+    printers.forEach(observePrinterAlert);
+    refreshCameraFocus();
+    renderBrowserAlerts();
+}
+
+function stopAlertPlayback() {
+    const source = activeAlertSource;
+    activeAlertSource = null;
+    activeAlertPrinter = null;
+    if (source) {
+        source.onended = null;
+        try { source.stop(); } catch (e) {}
+        source.disconnect();
+    }
+}
+
+function acknowledgePrinterAlert(id) {
+    const record = printerAlerts.get(id);
+    if (record) { record.pending = false; record.generation++; }
+    if (activeAlertPrinter === id) stopAlertPlayback();
+    renderBrowserAlerts();
+}
+
+function toggleAlertMute() {
+    alertSoundsMuted = !alertSoundsMuted;
+    stopAlertPlayback();
+    if (!alertSoundsMuted) printerAlerts.forEach(record => { record.lastPlayed = 0; });
+    renderBrowserAlerts();
+    tickPrinterAlerts();
+}
+
+function renderBrowserAlerts() {
+    const controls = document.getElementById('browser-alert-controls');
+    if (!controls) return;
+    controls.hidden = !printers.some(p => p.config.notification_sound && p.config.enabled !== false && !p.config.maintenance);
+    document.getElementById('enable-alert-sounds').hidden = alertSoundsEnabled;
+    const mute = document.getElementById('mute-alert-sounds');
+    mute.hidden = !alertSoundsEnabled;
+    mute.textContent = alertSoundsMuted ? 'Unmute' : 'Mute';
+    mute.setAttribute('aria-pressed', String(alertSoundsMuted));
+    const pending = [...printerAlerts.values()].some(record => record.pending);
+    document.getElementById('browser-alert-notice').textContent = alertAudioNotice ||
+        (alertSoundsMuted ? 'Sounds muted' : !alertSoundsEnabled ? 'Enable sounds on this device to hear printer alerts' :
+            pending ? 'Printer state changed — acknowledge to stop repeating' : 'Sounds ready');
+    document.querySelectorAll('[data-alert-printer]').forEach(el => {
+        const id = Number(el.dataset.alertPrinter), record = printerAlerts.get(id);
+        el.textContent = '';
+        if (!record?.pending) return;
+        const button = document.createElement('button');
+        button.className = 'btn btn-sm btn-alert-ack';
+        button.textContent = `Acknowledge: ${record.state}`;
+        button.onclick = () => acknowledgePrinterAlert(id);
+        el.appendChild(button);
+    });
+}
+
+async function enableAlertSounds() {
+    const button = document.getElementById('enable-alert-sounds');
+    button.disabled = true;
+    try {
+        if (!alertAudioContext || alertAudioContext.state === 'closed') {
+            const Context = window.AudioContext || window.webkitAudioContext;
+            if (!Context) throw Error('Web Audio unavailable');
+            alertAudioContext = new Context();
+            alertAudioContext.addEventListener('statechange', () => {
+                if (alertSoundsEnabled && alertAudioContext.state !== 'running') {
+                    alertSoundsEnabled = false;
+                    stopAlertPlayback();
+                    alertAudioNotice = 'Audio paused by browser. Tap Enable sounds to resume.';
+                    renderBrowserAlerts();
+                }
+            });
+        }
+        // Unlock silently during the user's gesture, as on Prusa Print Monitor.
+        const resumed = alertAudioContext.resume();
+        const silence = alertAudioContext.createBufferSource();
+        silence.buffer = alertAudioContext.createBuffer(1, 1, alertAudioContext.sampleRate);
+        silence.connect(alertAudioContext.destination);
+        silence.onended = () => silence.disconnect();
+        silence.start();
+        await resumed;
+        if (alertAudioContext.state !== 'running') throw Error('Audio suspended');
+        alertSoundsEnabled = true;
+        alertAudioNotice = '';
+        printerAlerts.forEach(record => { record.lastPlayed = 0; });
+        renderBrowserAlerts();
+        tickPrinterAlerts();
+    } catch (e) {
+        alertSoundsEnabled = false;
+        alertAudioNotice = 'Unable to enable audio. Tap Enable sounds to retry.';
+        renderBrowserAlerts();
+    } finally { button.disabled = false; }
+}
+
+async function tickPrinterAlerts() {
+    if (!alertSoundsEnabled || alertSoundsMuted || activeAlertSource || alertAudioLoading) return;
+    const now = Date.now();
+    const due = [...printerAlerts.entries()].filter(([, r]) => r.pending &&
+        (r.lastPlayed === 0 || now - r.lastPlayed >= ALERT_REPEAT_MS)).sort((a, b) => a[1].lastPlayed - b[1].lastPlayed);
+    for (const [id, record] of due) {
+        const printer = printers.find(p => p.config.id === id);
+        const sound = printer?.config.notification_sound;
+        if (!sound || printer.config.maintenance || printer.config.enabled === false) continue;
+        const generation = record.generation;
+        alertAudioLoading = true;
+        try {
+            let buffer = alertBuffers.get(sound);
+            if (!buffer) {
+                const response = await fetch(`/sounds/${encodeURIComponent(sound)}`);
+                if (!response.ok) throw Error('Cannot load sound');
+                buffer = await alertAudioContext.decodeAudioData(await response.arrayBuffer());
+                alertBuffers.set(sound, buffer);
+            }
+            // Ack, mute, removal or a newer state can occur while loading.
+            if (!alertSoundsEnabled || alertSoundsMuted || !record.pending || record.generation !== generation ||
+                !printers.some(p => p.config.id === id && p.config.notification_sound === sound && !p.config.maintenance && p.config.enabled !== false)) return;
+            const source = alertAudioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(alertAudioContext.destination);
+            activeAlertSource = source;
+            activeAlertPrinter = id;
+            source.onended = () => {
+                source.disconnect();
+                if (activeAlertSource === source) { activeAlertSource = null; activeAlertPrinter = null; }
+            };
+            source.start();
+            record.lastPlayed = Date.now();
+        } catch (e) {
+            stopAlertPlayback();
+            alertSoundsEnabled = false;
+            alertAudioNotice = 'Sound could not play. Tap Enable sounds to retry.';
+            renderBrowserAlerts();
+        } finally { alertAudioLoading = false; }
+        return; // Queue simultaneous printer alerts rather than overlapping audio.
+    }
+}
+
+setInterval(tickPrinterAlerts, 1000);
+
 
 // Initialize
 fetch('/api/settings').then(r => r.json()).then(settings => {

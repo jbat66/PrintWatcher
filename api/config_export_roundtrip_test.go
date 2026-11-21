@@ -28,6 +28,7 @@ func TestConfigExportImportRoundTrip(t *testing.T) {
 		URL: "http://10.0.0.1", APIKey: "printer-key", Username: "maker",
 		PollInterval: 10, Enabled: true,
 		IdleTimeoutMinutes: 30, MaxBedTemp: 110, MaxExtruderTemp: 280,
+		NotificationSound: "Cuckoo.mp3",
 	}
 	if err := src.CreatePrinter(&p); err != nil {
 		t.Fatal(err)
@@ -107,6 +108,9 @@ func TestConfigExportImportRoundTrip(t *testing.T) {
 	}
 	if got.HideModel != true || got.Model != "Core One" {
 		t.Errorf("model/hide_model did not round-trip: %+v", got)
+	}
+	if got.NotificationSound != "Cuckoo.mp3" {
+		t.Errorf("notification sound did not round-trip: %+v", got)
 	}
 	if got.IdleTimeoutMinutes != 30 || got.MaxBedTemp != 110 || got.MaxExtruderTemp != 280 {
 		t.Errorf("auto-off/thermal overrides did not round-trip: %+v", got)

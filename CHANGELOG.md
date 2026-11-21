@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.11.21.1
+
+- Double-click LIVE cameras to enlarge them with a prominent Time Remaining display; double-click again or press Escape to return.
+- Add per-printer browser alert sound selection, repeating state-change alerts, acknowledgement, and mute controls.
+- Bundle four MP3 alert sounds in the Docker image and preserve sound choices in configuration backups.
+
 ## v2026.11.20.3
 
 - Fetch fresh app HTML, JavaScript, and CSS on refresh to prevent stale browser assets after updates.

@@ -213,6 +213,7 @@ func (h *Handler) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type printerRequest struct {
+	NotificationSound  string  `json:"notification_sound"`
 	Name               string  `json:"name"`
 	Type               string  `json:"type"`
 	Model              string  `json:"model"`
@@ -246,8 +247,13 @@ func (h *Handler) addPrinter(w http.ResponseWriter, r *http.Request) {
 		IdleTimeoutMinutes: req.IdleTimeoutMinutes,
 		MaxBedTemp:         req.MaxBedTemp,
 		MaxExtruderTemp:    req.MaxExtruderTemp,
+		NotificationSound:  req.NotificationSound,
 	}
 
+	if !models.ValidNotificationSound(p.NotificationSound) {
+		jsonError(w, "select a bundled notification sound or None", http.StatusBadRequest)
+		return
+	}
 	if p.Name == "" || p.URL == "" || p.APIKey == "" {
 		jsonError(w, "name, url, and api_key are required", http.StatusBadRequest)
 		return
@@ -360,6 +366,7 @@ func (h *Handler) updatePrinter(w http.ResponseWriter, r *http.Request, id int64
 		IdleTimeoutMinutes: req.IdleTimeoutMinutes,
 		MaxBedTemp:         req.MaxBedTemp,
 		MaxExtruderTemp:    req.MaxExtruderTemp,
+		NotificationSound:  req.NotificationSound,
 	}
 
 	// Same required fields as addPrinter - a partial PUT would otherwise
@@ -367,6 +374,10 @@ func (h *Handler) updatePrinter(w http.ResponseWriter, r *http.Request, id int64
 	current, err := h.db.GetPrinter(id)
 	if err != nil {
 		jsonError(w, "printer not found", http.StatusNotFound)
+		return
+	}
+	if !models.ValidNotificationSound(p.NotificationSound) {
+		jsonError(w, "select a bundled notification sound or None", http.StatusBadRequest)
 		return
 	}
 	if p.Name == "" || p.URL == "" || p.APIKey == "" {
@@ -1357,6 +1368,7 @@ type configExportIngestTarget struct {
 }
 
 type configExportPrinter struct {
+	NotificationSound  string  `yaml:"notification_sound,omitempty"`
 	Name               string  `yaml:"name"`
 	Type               string  `yaml:"type"`
 	Model              string  `yaml:"model,omitempty"`
@@ -1415,6 +1427,7 @@ func (h *Handler) handleConfigExport(w http.ResponseWriter, r *http.Request) {
 			IdleTimeoutMinutes: full.IdleTimeoutMinutes,
 			MaxBedTemp:         full.MaxBedTemp,
 			MaxExtruderTemp:    full.MaxExtruderTemp,
+			NotificationSound:  full.NotificationSound,
 		}
 	}
 
@@ -1538,6 +1551,10 @@ func (h *Handler) handleConfigImport(w http.ResponseWriter, r *http.Request) {
 			skipped = append(skipped, fmt.Sprintf("printer %q: unknown type %q", ep.Name, ep.Type))
 			continue
 		}
+		if !models.ValidNotificationSound(ep.NotificationSound) {
+			skipped = append(skipped, fmt.Sprintf("printer %q: invalid notification sound", ep.Name))
+			continue
+		}
 		if ep.PollInterval <= 0 {
 			ep.PollInterval = 10
 		}
@@ -1554,6 +1571,7 @@ func (h *Handler) handleConfigImport(w http.ResponseWriter, r *http.Request) {
 			IdleTimeoutMinutes: ep.IdleTimeoutMinutes,
 			MaxBedTemp:         ep.MaxBedTemp,
 			MaxExtruderTemp:    ep.MaxExtruderTemp,
+			NotificationSound:  ep.NotificationSound,
 		}
 		if err := h.db.CreatePrinter(&p); err != nil {
 			skipped = append(skipped, fmt.Sprintf("printer %q: %v", ep.Name, err))

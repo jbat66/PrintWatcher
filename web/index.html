@@ -50,6 +50,11 @@
             <span id="banner-text">Connection lost — reconnecting...</span>
         </div>
 
+        <div id="browser-alert-controls" class="browser-alert-controls" hidden>
+            <button class="btn btn-sm" id="enable-alert-sounds" onclick="enableAlertSounds()">Enable sounds</button>
+            <button class="btn btn-sm" id="mute-alert-sounds" onclick="toggleAlertMute()" hidden>Mute</button>
+            <span id="browser-alert-notice" role="status"></span>
+        </div>
         <div id="printer-list"></div>
     </div>
 
@@ -109,6 +114,17 @@
                 <div class="form-group">
                     <label for="printer-max-extruder-temp">Thermal runaway: max extruder temp (°C)</label>
                     <input type="number" id="printer-max-extruder-temp" value="0" min="0" max="350" placeholder="0 = disabled">
+                </div>
+                <div class="form-group">
+                    <label for="printer-notification-sound">Select Notification Sound</label>
+                    <select id="printer-notification-sound">
+                        <option value="">None</option>
+                        <option value="AlarmSoundEffect.mp3">Alarm Sound Effect</option>
+                        <option value="ClockChimes.mp3">Clock Chimes</option>
+                        <option value="Cuckoo.mp3">Cuckoo</option>
+                        <option value="RedAlert.mp3">Red Alert</option>
+                    </select>
+                    <div class="form-hint">Browser alerts repeat every 60 seconds on printer state changes until acknowledged. Click Enable sounds on each viewing device. Keep the page open and awake for alerts.</div>
                 </div>
                 <div class="test-result" id="test-result"></div>
                 <div class="form-actions">

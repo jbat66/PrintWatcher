@@ -168,3 +168,12 @@ PrintWatcher is in early development. If you'd like to contribute:
 ## License
 
 AGPL-3.0 — see [LICENSE](LICENSE) for details.
+
+
+### Camera focus and browser alerts
+
+Double-click a LIVE camera to enlarge it, with a large Time Remaining reading underneath. Double-click again, press Escape, or use Return to dashboard to restore the normal view. A focused camera can also be toggled with Enter or Space when selected with the keyboard.
+
+In each printer's configuration, choose **Select Notification Sound** below the thermal temperature limits. Choose None to disable browser alerts for that printer. The bundled choices are Alarm Sound Effect, Clock Chimes, Cuckoo, and Red Alert; Docker includes the MP3s in `/usr/local/share/printwatcher/web/sounds`.
+
+Click **Enable sounds** on each viewing device to unlock browser audio. The first successful status establishes a baseline. Subsequent observed printer state changes trigger that printer's sound, repeating every 60 seconds until its **Acknowledge** button is clicked. **Mute** suppresses audio without acknowledging; **Unmute** resumes pending alerts. Connection failures do not create alerts. Each open browser keeps its own pending alerts; reloading establishes a new baseline. Keep the dashboard open and the device awake, since browsers can suspend background audio. Pushover settings continue to work independently.

@@ -29,6 +29,9 @@ jobs:
       - name: go build
         run: go build ./...
 
+      - name: Dashboard interaction tests
+        run: node --test web/dashboard.test.cjs
+
       - name: go test
         run: go test -race ./...
 

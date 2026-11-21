@@ -185,6 +185,10 @@ func (db *DB) migrate() error {
 		return err
 	}
 
+	if err := db.addColumn("printers", "notification_sound", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+
 	// Migration: add auto_dispatch_on_print_now column to ingest_targets if missing
 	if err := db.addColumn("ingest_targets", "auto_dispatch_on_print_now", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return err
@@ -329,7 +333,7 @@ func (db *DB) addColumn(table, col, def string) error {
 
 func (db *DB) ListPrinters() ([]models.PrinterConfig, error) {
 	rows, err := db.conn.Query(`
-		SELECT id, name, type, model, hide_model, url, api_key, username, enabled, maintenance, poll_interval, sort_order, created_at, updated_at, idle_timeout_minutes, max_bed_temp, max_extruder_temp
+		SELECT id, name, type, model, hide_model, url, api_key, username, enabled, maintenance, poll_interval, sort_order, created_at, updated_at, idle_timeout_minutes, max_bed_temp, max_extruder_temp, notification_sound
 		FROM printers ORDER BY sort_order, id
 	`)
 	if err != nil {
@@ -341,7 +345,7 @@ func (db *DB) ListPrinters() ([]models.PrinterConfig, error) {
 	for rows.Next() {
 		var p models.PrinterConfig
 		var enabled, maintenance, hideModel int
-		if err := rows.Scan(&p.ID, &p.Name, &p.Type, &p.Model, &hideModel, &p.URL, &p.APIKey, &p.Username, &enabled, &maintenance, &p.PollInterval, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.IdleTimeoutMinutes, &p.MaxBedTemp, &p.MaxExtruderTemp); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Type, &p.Model, &hideModel, &p.URL, &p.APIKey, &p.Username, &enabled, &maintenance, &p.PollInterval, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.IdleTimeoutMinutes, &p.MaxBedTemp, &p.MaxExtruderTemp, &p.NotificationSound); err != nil {
 			return nil, err
 		}
 		p.Enabled = enabled == 1
@@ -356,9 +360,9 @@ func (db *DB) GetPrinter(id int64) (*models.PrinterConfig, error) {
 	var p models.PrinterConfig
 	var enabled, maintenance, hideModel int
 	err := db.conn.QueryRow(`
-		SELECT id, name, type, model, hide_model, url, api_key, username, enabled, maintenance, poll_interval, sort_order, created_at, updated_at, idle_timeout_minutes, max_bed_temp, max_extruder_temp
+		SELECT id, name, type, model, hide_model, url, api_key, username, enabled, maintenance, poll_interval, sort_order, created_at, updated_at, idle_timeout_minutes, max_bed_temp, max_extruder_temp, notification_sound
 		FROM printers WHERE id = ?
-	`, id).Scan(&p.ID, &p.Name, &p.Type, &p.Model, &hideModel, &p.URL, &p.APIKey, &p.Username, &enabled, &maintenance, &p.PollInterval, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.IdleTimeoutMinutes, &p.MaxBedTemp, &p.MaxExtruderTemp)
+	`, id).Scan(&p.ID, &p.Name, &p.Type, &p.Model, &hideModel, &p.URL, &p.APIKey, &p.Username, &enabled, &maintenance, &p.PollInterval, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.IdleTimeoutMinutes, &p.MaxBedTemp, &p.MaxExtruderTemp, &p.NotificationSound)
 	if err != nil {
 		return nil, err
 	}
@@ -597,9 +601,9 @@ func (db *DB) CreatePrinter(p *models.PrinterConfig) error {
 	}
 
 	result, err := db.conn.Exec(`
-		INSERT INTO printers (name, type, model, hide_model, url, api_key, username, enabled, poll_interval, sort_order, idle_timeout_minutes, max_bed_temp, max_extruder_temp)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, p.Name, p.Type, p.Model, hideModel, p.URL, p.APIKey, p.Username, enabled, p.PollInterval, p.SortOrder, p.IdleTimeoutMinutes, p.MaxBedTemp, p.MaxExtruderTemp)
+		INSERT INTO printers (name, type, model, hide_model, url, api_key, username, enabled, poll_interval, sort_order, idle_timeout_minutes, max_bed_temp, max_extruder_temp, notification_sound)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, p.Name, p.Type, p.Model, hideModel, p.URL, p.APIKey, p.Username, enabled, p.PollInterval, p.SortOrder, p.IdleTimeoutMinutes, p.MaxBedTemp, p.MaxExtruderTemp, p.NotificationSound)
 	if err != nil {
 		return err
 	}
@@ -617,9 +621,9 @@ func (db *DB) UpdatePrinter(p *models.PrinterConfig) error {
 		hideModel = 1
 	}
 	return affected(db.conn.Exec(`
-		UPDATE printers SET name=?, type=?, model=?, hide_model=?, url=?, api_key=?, username=?, enabled=?, poll_interval=?, idle_timeout_minutes=?, max_bed_temp=?, max_extruder_temp=?, updated_at=CURRENT_TIMESTAMP
+		UPDATE printers SET name=?, type=?, model=?, hide_model=?, url=?, api_key=?, username=?, enabled=?, poll_interval=?, idle_timeout_minutes=?, max_bed_temp=?, max_extruder_temp=?, notification_sound=?, updated_at=CURRENT_TIMESTAMP
 		WHERE id=?
-	`, p.Name, p.Type, p.Model, hideModel, p.URL, p.APIKey, p.Username, enabled, p.PollInterval, p.IdleTimeoutMinutes, p.MaxBedTemp, p.MaxExtruderTemp, p.ID))
+	`, p.Name, p.Type, p.Model, hideModel, p.URL, p.APIKey, p.Username, enabled, p.PollInterval, p.IdleTimeoutMinutes, p.MaxBedTemp, p.MaxExtruderTemp, p.NotificationSound, p.ID))
 }
 
 func (db *DB) ReorderPrinters(ids []int64) error {

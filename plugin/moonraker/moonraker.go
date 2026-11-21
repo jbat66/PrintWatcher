@@ -232,7 +232,7 @@ func (p *Plugin) GetStatus(ctx context.Context) (*models.PrinterStatus, error) {
 	case "printing":
 		out.State = models.StatePrinting
 	case "paused":
-		out.State = models.StatePaused
+		out.State, out.StateMessage = models.StatePaused, s.Print.Message
 	case "complete":
 		jobState = "FINISHED"
 	case "cancelled":

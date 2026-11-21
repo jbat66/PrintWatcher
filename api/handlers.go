@@ -1287,6 +1287,16 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request, id int64) {
 		jsonError(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
+	printer, err := h.db.GetPrinter(id)
+	if err != nil {
+		jsonError(w, "printer not found", http.StatusNotFound)
+		return
+	}
+	storage, err := printerUploadStorage(printer.Type, filename)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	printNow := r.URL.Query().Get("print_now") == "true"
 
 	r.Body = http.MaxBytesReader(w, r.Body, 200<<20)
@@ -1296,9 +1306,8 @@ func (h *Handler) uploadFile(w http.ResponseWriter, r *http.Request, id int64) {
 		return
 	}
 
-	// PrusaLink's internal flash ("local") is read-only over the network API -
-	// only removable media ("usb", which also covers SD cards) accepts writes.
-	if err := h.poller.UploadFile(r.Context(), id, "usb", filename, data, printNow); err != nil {
+	// Route through the printer-specific writable storage.
+	if err := h.poller.UploadFile(r.Context(), id, storage, filename, data, printNow); err != nil {
 		jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

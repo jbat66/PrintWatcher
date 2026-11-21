@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.11.21.2
+
+- Include U1/Klipper in Upload with printer-specific G-code validation and storage routing.
+- Move Enable sounds to the header and add independent per-printer mute and acknowledgement controls.
+- Limit browser alerts to printer errors, filament-change requests, and confirmed print completion.
+
 ## v2026.11.21.1
 
 - Double-click LIVE cameras to enlarge them with a prominent Time Remaining display; double-click again or press Escape to return.

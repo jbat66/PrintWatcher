@@ -29,6 +29,10 @@
                     <button class="btn btn-sm" onclick="bulkPower('off')" title="Turn all printers off">&#9889; All Off</button>
                 </span>
                 <button class="btn btn-sm" onclick="openUploadModal()" title="Upload a file to a printer">&#8593; Upload</button>
+                <span id="browser-alert-controls" class="browser-alert-controls" hidden>
+                    <button class="btn btn-sm" id="enable-alert-sounds" onclick="enableAlertSounds()">Enable sounds</button>
+                    <span id="browser-alert-notice" role="status"></span>
+                </span>
                 <button class="btn btn-icon" onclick="openSettings()" title="Settings">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -50,11 +54,6 @@
             <span id="banner-text">Connection lost — reconnecting...</span>
         </div>
 
-        <div id="browser-alert-controls" class="browser-alert-controls" hidden>
-            <button class="btn btn-sm" id="enable-alert-sounds" onclick="enableAlertSounds()">Enable sounds</button>
-            <button class="btn btn-sm" id="mute-alert-sounds" onclick="toggleAlertMute()" hidden>Mute</button>
-            <span id="browser-alert-notice" role="status"></span>
-        </div>
         <div id="printer-list"></div>
     </div>
 
@@ -124,7 +123,7 @@
                         <option value="Cuckoo.mp3">Cuckoo</option>
                         <option value="RedAlert.mp3">Red Alert</option>
                     </select>
-                    <div class="form-hint">Browser alerts repeat every 60 seconds on printer state changes until acknowledged. Click Enable sounds on each viewing device. Keep the page open and awake for alerts.</div>
+                    <div class="form-hint">Browser alerts for errors, filament-change requests, and confirmed print completion repeat every 60 seconds until acknowledged. Click Enable sounds on each viewing device. Keep the page open and awake for alerts.</div>
                 </div>
                 <div class="test-result" id="test-result"></div>
                 <div class="form-actions">
@@ -143,11 +142,12 @@
             <form id="upload-form" onsubmit="submitUpload(event)">
                 <div class="form-group">
                     <label for="upload-printer">Printer</label>
-                    <select id="upload-printer" required></select>
+                    <select id="upload-printer" required onchange="updateUploadFileTypes()"></select>
                 </div>
                 <div class="form-group">
                     <label for="upload-file">File</label>
                     <input type="file" id="upload-file" accept=".gcode,.bgcode" required>
+                    <div class="form-hint" id="upload-file-hint"></div>
                 </div>
                 <div class="form-group">
                     <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal">

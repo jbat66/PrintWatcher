@@ -1841,10 +1841,10 @@ function openUploadModal() {
     const select = document.getElementById('upload-printer');
     select.innerHTML = '';
 
-    const groups = {};
+    const groups = Object.create(null);
     const ungrouped = [];
     for (const p of printers) {
-        if (p.config.type !== 'prusalink') continue;
+        if (!['prusalink', 'snapmaker-u1'].includes(p.config.type)) continue;
         if (p.config.model) {
             (groups[p.config.model] = groups[p.config.model] || []).push(p);
         } else {
@@ -1873,18 +1873,34 @@ function openUploadModal() {
     if (!select.options.length) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = 'No PrusaLink printers configured';
+        opt.textContent = 'No PrusaLink or Klipper printers configured';
         select.appendChild(opt);
     }
 
     document.getElementById('upload-file').value = '';
     document.getElementById('upload-print-now').checked = false;
+    updateUploadFileTypes();
     const result = document.getElementById('upload-result');
     result.style.display = 'none';
     result.className = 'test-result';
     result.textContent = '';
 
     document.getElementById('upload-modal').classList.add('active');
+}
+
+function uploadFileError(printer, filename) {
+    if (!printer || !['prusalink', 'snapmaker-u1'].includes(printer.config.type)) return 'Select a PrusaLink or Klipper printer.';
+    const extension = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+    if (printer.config.type === 'snapmaker-u1') return extension === '.gcode' ? '' : 'U1/Klipper printers accept .gcode files only.';
+    return ['.gcode', '.bgcode'].includes(extension) ? '' : 'PrusaLink printers accept .gcode or .bgcode files.';
+}
+
+function updateUploadFileTypes() {
+    const id = Number(document.getElementById('upload-printer').value);
+    const printer = printers.find(p => p.config.id === id);
+    const klipper = printer?.config.type === 'snapmaker-u1';
+    document.getElementById('upload-file').accept = klipper ? '.gcode' : '.gcode,.bgcode';
+    document.getElementById('upload-file-hint').textContent = klipper ? 'U1/Klipper: .gcode files only.' : 'PrusaLink: .gcode or .bgcode files.';
 }
 
 async function submitUpload(e) {
@@ -1898,6 +1914,13 @@ async function submitUpload(e) {
 
     result.style.display = 'block';
     result.className = 'test-result';
+    const printer = printers.find(p => p.config.id === Number(id));
+    const validation = uploadFileError(printer, file.name);
+    if (validation) {
+        result.className = 'test-result error';
+        result.textContent = validation;
+        return;
+    }
     result.textContent = 'Uploading...';
 
     try {
@@ -2393,8 +2416,17 @@ const printerAlerts = new Map();
 const alertBuffers = new Map();
 const ALERT_REPEAT_MS = 60000;
 let alertAudioContext, activeAlertSource = null, activeAlertPrinter = null;
-let alertSoundsEnabled = false, alertSoundsMuted = false, alertAudioLoading = false;
+let alertSoundsEnabled = false, alertAudioLoading = false;
+const mutedAlertPrinters = new Set();
 let alertAudioNotice = '';
+
+function printerAlertCondition(status) {
+    const jobState = (status.job?.job_state || '').toUpperCase();
+    const message = status.state_message || '';
+    if (['paused', 'attention', 'error'].includes(status.state) && /filament|m600|run[ -]?out/i.test(message)) return 'Change filament';
+    if (status.state === 'error' || status.state === 'attention' || jobState === 'ERROR') return 'Printer error';
+    return '';
+}
 
 function observePrinterAlert(printer) {
     const cfg = printer.config, status = printer.status;
@@ -2404,13 +2436,24 @@ function observePrinterAlert(printer) {
         return;
     }
     if (!status || ['offline', 'disconnected'].includes(status.state)) return;
+    const condition = printerAlertCondition(status);
+    const active = ['printing', 'paused'].includes(status.state);
+    const finished = (status.job?.job_state || '').toUpperCase() === 'FINISHED';
     let record = printerAlerts.get(cfg.id);
     if (!record) {
-        printerAlerts.set(cfg.id, {state: status.state, pending: false, lastPlayed: 0, generation: 0});
+        // Initial status establishes the baseline, even if already finished.
+        printerAlerts.set(cfg.id, {condition, sawPrinting: active, pending: false, lastPlayed: 0, generation: 0});
         return;
     }
-    if (record.state !== status.state) {
-        record.state = status.state;
+    const completed = finished && record.sawPrinting;
+    const reason = condition && condition !== record.condition ? condition : completed ? 'Print finished' : '';
+    record.condition = condition;
+    if (completed) record.sawPrinting = false;
+    else if (active) record.sawPrinting = true;
+    // Cancelled or cleared jobs end this print cycle without a completion alert.
+    else if (!finished) record.sawPrinting = false;
+    if (reason) {
+        record.reason = reason;
         record.pending = true;
         record.lastPlayed = 0;
         record.generation++;
@@ -2423,6 +2466,7 @@ function syncPrinterAlerts() {
         if (!printers.some(p => p.config.id === id)) {
             acknowledgePrinterAlert(id);
             printerAlerts.delete(id);
+            mutedAlertPrinters.delete(id);
         }
     }
     printers.forEach(observePrinterAlert);
@@ -2448,10 +2492,12 @@ function acknowledgePrinterAlert(id) {
     renderBrowserAlerts();
 }
 
-function toggleAlertMute() {
-    alertSoundsMuted = !alertSoundsMuted;
-    stopAlertPlayback();
-    if (!alertSoundsMuted) printerAlerts.forEach(record => { record.lastPlayed = 0; });
+function toggleAlertMute(id) {
+    if (mutedAlertPrinters.has(id)) mutedAlertPrinters.delete(id);
+    else mutedAlertPrinters.add(id);
+    if (activeAlertPrinter === id) stopAlertPlayback();
+    const record = printerAlerts.get(id);
+    if (record && !mutedAlertPrinters.has(id)) record.lastPlayed = 0;
     renderBrowserAlerts();
     tickPrinterAlerts();
 }
@@ -2459,25 +2505,40 @@ function toggleAlertMute() {
 function renderBrowserAlerts() {
     const controls = document.getElementById('browser-alert-controls');
     if (!controls) return;
-    controls.hidden = !printers.some(p => p.config.notification_sound && p.config.enabled !== false && !p.config.maintenance);
+    controls.hidden = (alertSoundsEnabled && !alertAudioNotice) || !printers.some(p => p.config.notification_sound && p.config.enabled !== false && !p.config.maintenance);
     document.getElementById('enable-alert-sounds').hidden = alertSoundsEnabled;
-    const mute = document.getElementById('mute-alert-sounds');
-    mute.hidden = !alertSoundsEnabled;
-    mute.textContent = alertSoundsMuted ? 'Unmute' : 'Mute';
-    mute.setAttribute('aria-pressed', String(alertSoundsMuted));
-    const pending = [...printerAlerts.values()].some(record => record.pending);
-    document.getElementById('browser-alert-notice').textContent = alertAudioNotice ||
-        (alertSoundsMuted ? 'Sounds muted' : !alertSoundsEnabled ? 'Enable sounds on this device to hear printer alerts' :
-            pending ? 'Printer state changed — acknowledge to stop repeating' : 'Sounds ready');
+    document.getElementById('browser-alert-notice').textContent = alertAudioNotice;
     document.querySelectorAll('[data-alert-printer]').forEach(el => {
         const id = Number(el.dataset.alertPrinter), record = printerAlerts.get(id);
+        const printer = printers.find(p => p.config.id === id);
+        const signature = JSON.stringify([printer?.config.notification_sound, printer?.config.enabled, printer?.config.maintenance,
+            printer?.config.name, alertSoundsEnabled, mutedAlertPrinters.has(id), record?.pending, record?.reason]);
+        if (el.dataset.alertSignature === signature) return;
+        el.dataset.alertSignature = signature;
         el.textContent = '';
-        if (!record?.pending) return;
-        const button = document.createElement('button');
-        button.className = 'btn btn-sm btn-alert-ack';
-        button.textContent = `Acknowledge: ${record.state}`;
-        button.onclick = () => acknowledgePrinterAlert(id);
-        el.appendChild(button);
+        if (!printer?.config.notification_sound || printer.config.enabled === false || printer.config.maintenance) return;
+        if (alertSoundsEnabled) {
+            const muted = mutedAlertPrinters.has(id);
+            const mute = document.createElement('button');
+            mute.className = 'btn btn-sm';
+            mute.textContent = muted ? 'Unmute' : 'Mute';
+            mute.setAttribute('aria-pressed', String(muted));
+            mute.setAttribute('aria-label', `${mute.textContent} ${printer.config.name}`);
+            mute.onclick = () => toggleAlertMute(id);
+            el.appendChild(mute);
+            const notice = document.createElement('span');
+            notice.className = 'printer-sound-status';
+            notice.textContent = muted ? 'Sounds muted' : 'Sounds ready';
+            el.appendChild(notice);
+        }
+        if (record?.pending) {
+            const button = document.createElement('button');
+            button.className = 'btn btn-sm btn-alert-ack';
+            button.textContent = 'Acknowledge Alert';
+            button.title = record.reason;
+            button.onclick = () => acknowledgePrinterAlert(id);
+            el.appendChild(button);
+        }
     });
 }
 
@@ -2520,9 +2581,9 @@ async function enableAlertSounds() {
 }
 
 async function tickPrinterAlerts() {
-    if (!alertSoundsEnabled || alertSoundsMuted || activeAlertSource || alertAudioLoading) return;
+    if (!alertSoundsEnabled || activeAlertSource || alertAudioLoading) return;
     const now = Date.now();
-    const due = [...printerAlerts.entries()].filter(([, r]) => r.pending &&
+    const due = [...printerAlerts.entries()].filter(([id, r]) => r.pending && !mutedAlertPrinters.has(id) &&
         (r.lastPlayed === 0 || now - r.lastPlayed >= ALERT_REPEAT_MS)).sort((a, b) => a[1].lastPlayed - b[1].lastPlayed);
     for (const [id, record] of due) {
         const printer = printers.find(p => p.config.id === id);
@@ -2539,7 +2600,7 @@ async function tickPrinterAlerts() {
                 alertBuffers.set(sound, buffer);
             }
             // Ack, mute, removal or a newer state can occur while loading.
-            if (!alertSoundsEnabled || alertSoundsMuted || !record.pending || record.generation !== generation ||
+            if (!alertSoundsEnabled || mutedAlertPrinters.has(id) || !record.pending || record.generation !== generation ||
                 !printers.some(p => p.config.id === id && p.config.notification_sound === sound && !p.config.maintenance && p.config.enabled !== false)) return;
             const source = alertAudioContext.createBufferSource();
             source.buffer = buffer;

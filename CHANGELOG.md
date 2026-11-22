@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.22.2
+
+- Show an always-visible, bottom-centered remaining-time overlay on enlarged mobile video without reducing the video area.
+
 ## v2026.11.22.1
 
 - Remove the connected-printer count from the header.

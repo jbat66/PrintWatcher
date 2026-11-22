@@ -821,6 +821,7 @@ function renderPrinterCard(printer) {
                             <img class="webcam-print-thumb" style="display:none" alt="">
                             <span class="webcam-placeholder-text" data-field="webcam-placeholder-text">${(state === 'offline' && !hasCamera) ? 'No camera' : 'Camera Unreachable'}</span>
                         </div>
+                        <div class="camera-remaining-overlay">Remaining: <span data-camera-overlay-remaining>${cameraRemaining(printer)}</span></div>
                     </div>
                     <div class="camera-focus-caption">
                         <span class="camera-focus-label" title="Time Remaining for ${esc(cfg.name)}">Time Remaining for ${esc(cfg.name)}</span>
@@ -2482,7 +2483,11 @@ function refreshCameraFocus() {
     if (mobileCameraFocus) wrapper.classList.add('camera-mobile');
     else wrapper.classList.remove('camera-mobile');
     document.body.classList.add('camera-focus-open');
-    wrapper.querySelector('[data-camera-remaining]').textContent = cameraRemaining(printer);
+    const remaining = cameraRemaining(printer);
+    for (const selector of ['[data-camera-remaining]', '[data-camera-overlay-remaining]']) {
+        const reading = wrapper.querySelector(selector);
+        if (reading) reading.textContent = remaining;
+    }
 }
 
 document.addEventListener('keydown', event => {

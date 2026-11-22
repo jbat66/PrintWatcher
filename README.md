@@ -176,7 +176,7 @@ Use **Full screen** to the left of Upload to display the entire dashboard fullsc
 
 On desktop, click a LIVE camera to enlarge it. A single line reads “Time Remaining for [printer name]” above the unchanged large time value, with Return to dashboard and sound controls sharing one row below. Click again, press Escape, or use Return to dashboard to restore the normal view. Enter or Space also toggles a keyboard-selected camera.
 
-On a phone or tablet, tap the LIVE video for a video-only landscape view, then tap again to return. The app requests native fullscreen and landscape orientation when supported. If the browser blocks either feature, a rotated landscape view fills the available browser viewport; browser bars may remain visible. No countdown or printer controls appear in the mobile video-only view.
+On a phone or tablet, tap the LIVE video for a video-only landscape view, then tap again to return. The app requests native fullscreen and landscape orientation when supported. If the browser blocks either feature, a rotated landscape view fills the available browser viewport; browser bars may remain visible. An always-visible Remaining overlay is centered at the bottom of the mobile video; it uses white text on a translucent black background and rotates with the landscape view. Tap anywhere, including the overlay, to return.
 
 In each printer's configuration, choose **Select Notification Sound** below the thermal temperature limits. Choose None to disable browser alerts for that printer. The bundled choices are Alarm Sound Effect, Clock Chimes, Cuckoo, and Red Alert; Docker includes the MP3s in `/usr/local/share/printwatcher/web/sounds`.
 

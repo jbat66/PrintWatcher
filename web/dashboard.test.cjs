@@ -9,7 +9,7 @@ function dashboard() {
         if (!elements.has(id)) elements.set(id, {hidden: false, textContent: '', setAttribute() {}, appendChild() {}});
         return elements.get(id);
     };
-    const wrapper = {classList: {add: v => classes.add(v), remove: v => classes.delete(v)}, querySelector: () => element('remaining')};
+    const wrapper = {classList: {add: v => classes.add(v), remove: v => classes.delete(v)}, querySelector: selector => element(selector.includes('overlay') ? 'overlay-remaining' : 'remaining')};
     const classList = {add: v => classes.add(v), remove: v => classes.delete(v)};
     let now = 100000;
     class Context {
@@ -159,6 +159,9 @@ test('printer-specific file type validation blocks Klipper BGCODE before sending
 test('a single activation enters mobile video-only mode and the next returns', () => {
     const d = dashboard(); d.ctx.navigator = {userAgent:'iPhone'};
     d.ctx.toggleCameraFocus(1);assert(d.classes.has('camera-mobile'));
+    assert.equal(d.element('overlay-remaining').textContent,'600s');
+    d.ctx.printers[0].status.job.remaining_secs=420;
+    d.ctx.refreshCameraFocus();assert.equal(d.element('overlay-remaining').textContent,'420s');
     d.ctx.toggleCameraFocus(1);assert(!d.classes.has('camera-focused'));assert(!d.classes.has('camera-mobile'));
     const source=fs.readFileSync(__dirname+'/app.js','utf8');
     assert(source.includes('onclick="toggleCameraFocus(${cfg.id})"'));

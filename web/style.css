@@ -1244,3 +1244,23 @@ body.camera-focus-open { overflow: hidden; }
 }
 
 #dashboard-fullscreen[hidden] { display: none; }
+
+/* Overlay stays in the video canvas so the portrait landscape fallback rotates
+   its position and text with the image. It never takes space from the video. */
+.camera-remaining-overlay { display: none; pointer-events: none; }
+.camera-focused.camera-mobile .camera-remaining-overlay {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.4rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

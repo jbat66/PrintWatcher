@@ -23,11 +23,11 @@
             </div>
             <time class="header-clock" id="current-time" aria-label="Current local time"></time>
             <div class="header-actions">
-                <span class="printer-count" id="printer-count"></span>
                 <span class="power-controls" id="power-controls" style="display:none">
                     <button class="btn btn-sm" onclick="bulkPower('on')" title="Turn all printers on">&#9889; All On</button>
                     <button class="btn btn-sm" onclick="bulkPower('off')" title="Turn all printers off">&#9889; All Off</button>
                 </span>
+                <button class="btn btn-sm" id="dashboard-fullscreen" onclick="toggleDashboardFullscreen()" aria-pressed="false">Full screen</button>
                 <button class="btn btn-sm" onclick="openUploadModal()" title="Upload a file to a printer">&#8593; Upload</button>
                 <span id="browser-alert-controls" class="browser-alert-controls" hidden>
                     <button class="btn btn-sm" id="enable-alert-sounds" onclick="enableAlertSounds()">Enable sounds</button>

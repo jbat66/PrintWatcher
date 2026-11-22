@@ -104,11 +104,7 @@ header .app-version {
     white-space: nowrap;
 }
 
-header .printer-count {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-left: auto;
-}
+
 
 .btn {
     display: inline-flex;
@@ -1246,3 +1242,5 @@ body.camera-focus-open { overflow: hidden; }
         transform: translate(-50%, -50%) rotate(90deg);
     }
 }
+
+#dashboard-fullscreen[hidden] { display: none; }

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.22.1
+
+- Remove the connected-printer count from the header.
+- Add a full-screen toggle to the left of Upload, with an Exit full screen label while active.
+
 ## v2026.11.21.4
 
 - Toggle enlarged camera viewing with one click or tap on desktop and mobile.

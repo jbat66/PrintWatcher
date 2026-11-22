@@ -172,6 +172,8 @@ AGPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ### Camera focus and browser alerts
 
+Use **Full screen** to the left of Upload to display the entire dashboard fullscreen; click **Exit full screen** or press Escape to return. The button is hidden in browsers without a supported fullscreen API.
+
 On desktop, click a LIVE camera to enlarge it. A single line reads “Time Remaining for [printer name]” above the unchanged large time value, with Return to dashboard and sound controls sharing one row below. Click again, press Escape, or use Return to dashboard to restore the normal view. Enter or Space also toggles a keyboard-selected camera.
 
 On a phone or tablet, tap the LIVE video for a video-only landscape view, then tap again to return. The app requests native fullscreen and landscape orientation when supported. If the browser blocks either feature, a rotated landscape view fills the available browser viewport; browser bars may remain visible. No countdown or printer controls appear in the mobile video-only view.

@@ -124,7 +124,7 @@ function applyStatusUpdate(printerId, status) {
         const card = document.querySelector(`[data-printer-id="${printerId}"]`);
         if (card) updateCard(card, printer);
     }
-    updateHeaderCount();
+    updatePowerControls();
     refreshCameraFocus();
     renderBrowserAlerts();
 }
@@ -134,16 +134,8 @@ function showConnectionBanner(show) {
     if (banner) banner.style.display = show ? 'flex' : 'none';
 }
 
-function updateHeaderCount() {
-    const count = document.getElementById('printer-count');
-    if (!printers || printers.length === 0) {
-        count.textContent = '';
-        document.getElementById('power-controls').style.display = 'none';
-        return;
-    }
-    const connected = printers.filter(p => p.status && p.status.state !== 'offline' && p.status.state !== 'disconnected').length;
-    count.textContent = `${connected}/${printers.length} connected`;
-    const hasPower = printers.some(p => p.status && p.status.power && p.status.power.length > 0);
+function updatePowerControls() {
+    const hasPower = printers?.some(p => p.status?.power?.length > 0);
     document.getElementById('power-controls').style.display = hasPower ? 'inline-flex' : 'none';
 }
 
@@ -698,7 +690,7 @@ function updateDashboard() {
     const list = document.getElementById('printer-list');
 
     if (!printers || printers.length === 0) {
-        updateHeaderCount();
+        updatePowerControls();
         list.innerHTML = `
             <div class="empty-state">
                 <h2>No printers configured</h2>
@@ -709,7 +701,7 @@ function updateDashboard() {
         return;
     }
 
-    updateHeaderCount();
+    updatePowerControls();
 
     const currentIDs = printers.map(p => `${p.config.id}:${p.has_camera}:${p.has_snapshot_live}:${p.config.maintenance}`);
     const structureChanged = JSON.stringify(currentIDs) !== JSON.stringify(prevPrinterIDs);
@@ -2376,6 +2368,34 @@ function isMobileCameraDevice() {
     return device.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod|Mobile/i.test(device.userAgent || '') ||
         (device.maxTouchPoints > 0 && (device.platform === 'MacIntel' || window.matchMedia?.('(pointer: coarse)').matches));
 }
+
+function updateFullscreenButton() {
+    const button = document.getElementById('dashboard-fullscreen');
+    if (!button) return;
+    const root = document.documentElement;
+    button.hidden = !(root?.requestFullscreen || root?.webkitRequestFullscreen);
+    const active = !!currentCameraFullscreen();
+    button.textContent = active ? 'Exit full screen' : 'Full screen';
+    button.setAttribute('aria-pressed', String(active));
+}
+
+async function toggleDashboardFullscreen() {
+    try {
+        if (currentCameraFullscreen()) {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen;
+            await exit.call(document);
+        } else {
+            const root = document.documentElement;
+            const request = root.requestFullscreen || root.webkitRequestFullscreen;
+            await request.call(root);
+        }
+        updateFullscreenButton();
+    } catch (e) { alert('Full screen is unavailable in this browser.'); }
+}
+
+document.addEventListener('fullscreenchange', updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+updateFullscreenButton();
 
 function currentCameraFullscreen() { return document.fullscreenElement || document.webkitFullscreenElement; }
 

@@ -241,3 +241,22 @@ test('a recovered camera becomes visible after an earlier failed image request',
         assert(uncollapsed);assert.equal(beside.style.display,'');
     }
 });
+
+test('dashboard fullscreen toggles the whole page and follows native exit', async () => {
+    const d=dashboard();let requests=0,exits=0;
+    const root={requestFullscreen(){requests++;d.ctx.document.fullscreenElement=root;return Promise.resolve();}};
+    d.ctx.document.documentElement=root;
+    d.ctx.document.exitFullscreen=()=>{exits++;d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.updateFullscreenButton();assert.equal(d.element('dashboard-fullscreen').hidden,false);
+    await d.ctx.toggleDashboardFullscreen();assert.equal(requests,1);assert.equal(d.element('dashboard-fullscreen').textContent,'Exit full screen');
+    await d.ctx.toggleDashboardFullscreen();assert.equal(exits,1);assert.equal(d.element('dashboard-fullscreen').textContent,'Full screen');
+    await d.ctx.toggleDashboardFullscreen();d.ctx.document.fullscreenElement=null;d.ctx.updateFullscreenButton();
+    assert.equal(d.element('dashboard-fullscreen').textContent,'Full screen');
+});
+
+test('unsupported fullscreen stays hidden and rejected requests report failure', async () => {
+    const d=dashboard();d.ctx.updateFullscreenButton();assert.equal(d.element('dashboard-fullscreen').hidden,true);
+    let notice='';d.ctx.alert=text=>{notice=text;};
+    d.ctx.document.documentElement={requestFullscreen(){return Promise.reject(Error('blocked'));}};
+    await d.ctx.toggleDashboardFullscreen();assert.match(notice,/unavailable/);
+});

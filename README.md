@@ -5,9 +5,23 @@
 
 A self-hosted dashboard for monitoring multiple 3D printers — OctoPrint, PrusaLink, and Snapmaker U1 — from a single web interface.
 
-This was built for my own personal use and the way I want to interact with my printers, as well as an ongoing experiment in agentic coding.
+I originally wrote a Bash script to monitor my Prusa Core One+. I wanted a large display I could see across the room, along with an alert sound. It worked for a while, but I had to run it on Linux or Windows’ WSL. Then I discovered [PrintSpy](https://github.com/ccmpbll/printspy) on Unraid as a Docker application and thought it was great. I wanted to add more and take it in a slightly different direction, so I forked it and built PrintWatcher with the help of Codex.
 
-> **Still Under Development** — expect rough edges, breaking changes, and evolving APIs. Feedback and contributions welcome.
+The following has been added or expanded since the fork:
+
+- Added RTSP camera support alongside HTTP cameras, including snapshots, live viewing, and notification images.
+- Added Snapmaker U1 and other Klipper printers through Moonraker, including authentication, printer controls, progress, layers, temperatures, thumbnails, and file management.
+- Integrated the U1’s built-in camera for fresh snapshots and continuously updating live viewing.
+- Improved remaining-time and ETA estimates for Klipper printers.
+- Expanded dashboard uploads to include U1/Klipper printers, with printer-specific file validation, model grouping, and optional immediate printing.
+- Improved temperature displays with larger, centered readings and smaller Fahrenheit values beside the current Celsius temperatures.
+- Added camera enlargement and mobile landscape viewing, including a centered remaining-time overlay.
+- Added full-screen dashboard and per-printer Zoom modes, with the zoomed camera above the printer information.
+- Added configurable browser alert sounds per printer, independent mute controls, and alert acknowledgement for errors, filament changes, and completed prints.
+- Enhanced Pushover checkpoints to allow 100% completion and configurable notification delays.
+- Improved browser refresh and camera recovery behavior, including fixes for stale assets and black camera images on phones.
+- Established GitHub Container Registry publishing, Unraid installation support, automated tests, container smoke checks, and GitHub releases without Docker Hub.
+- Adopted date-based versioning using `vYYYY.MM.DD.I`, with matching annotated release tags.
 
 ## What it does
 

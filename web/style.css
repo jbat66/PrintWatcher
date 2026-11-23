@@ -1284,13 +1284,23 @@ body.printer-zoom-open #printer-list > :not(.printer-zoomed) { display: none; }
     overflow: auto;
 }
 .printer-zoomed > .printer-header { flex-shrink: 0; }
-.printer-zoomed > .printer-body { flex: 1; min-height: 0; }
-.printer-zoomed .webcam-wrapper:not(.camera-focused) { width: 35%; }
+.printer-zoomed > .printer-body {
+    flex: 1;
+    min-height: auto;
+    flex-direction: column;
+}
+.printer-zoomed .webcam-wrapper:not(.camera-focused) {
+    width: 100%;
+    min-width: 0;
+    flex-shrink: 0;
+}
+.printer-zoomed .webcam-wrapper:not(.camera-focused) .webcam-container {
+    flex: none;
+    height: clamp(200px, 55dvh, 720px);
+}
 .printer-zoomed .webcam-container img.webcam-img { object-fit: contain; }
 .printer-zoomed .printer-stats { justify-content: center; }
 .printer-zoomed .stat-box-reading { height: clamp(3rem, 10vh, 6rem); }
 @media (max-width: 768px) {
-    .printer-zoomed > .printer-body { min-height: auto; }
-    .printer-zoomed .webcam-wrapper:not(.camera-focused) { width: 100%; }
     .printer-zoomed .webcam-wrapper:not(.camera-focused) .webcam-container { height: clamp(200px, 40dvh, 450px); }
 }

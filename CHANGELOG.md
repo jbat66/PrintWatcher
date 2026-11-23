@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.23.2
+
+- Stack the full-width camera above the printer status in Zoom mode, preserving the complete landscape image and camera controls.
+
 ## v2026.11.23.1
 
 - Add Zoom/Unzoom beside History to fill the screen with one printer card, including its camera modes, controls, and status, while hiding the dashboard header and other printers.

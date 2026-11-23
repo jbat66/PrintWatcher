@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.23.3
+
+- Highlight remaining-time numbers in soft cyan (#67DDE8) in normal and zoomed printer cards.
+
 ## v2026.11.23.2
 
 - Stack the full-width camera above the printer status in Zoom mode, preserving the complete landscape image and camera controls.

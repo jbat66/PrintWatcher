@@ -612,6 +612,8 @@ header .app-version {
     font-weight: 600;
 }
 
+.stat-value[data-field="remaining"] { color: #67DDE8; }
+
 /* Keep the existing 48px boxes while placing the reading beside its label. */
 .stat-box-reading {
     position: relative;

@@ -1,4 +1,6 @@
-# <img src="web/logo.png" alt="" width="64"> PrintWatcher
+<p align="center"><img src="web/icon-512.png" alt="PrintWatcher" width="320"></p>
+
+# PrintWatcher
 ![Build Status](https://img.shields.io/github/actions/workflow/status/jbat66/PrintWatcher/build.yaml) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
 
 A self-hosted dashboard for monitoring multiple 3D printers — OctoPrint, PrusaLink, and Snapmaker U1 — from a single web interface.
@@ -15,13 +17,14 @@ Each printer gets a row in the dashboard: webcam/snapshot, progress/ETA, temps, 
 
 - **PrusaLink** — supported, but only tested on MK4S and Core One
 - **OctoPrint** — technically supported, but nothing to test against at this point
+- **Snapmaker U1 or other Klipper** — supported through Moonraker, including the U1 built-in camera when exposed by Moonraker
 
 
 Plugin architecture — new platforms should be straightforward to add.
 
 ## Features
 
-### Core (both platforms)
+### Core (all platforms)
 
 - Real-time dashboard updates via SSE, no manual refresh
 - Print control — pause, resume, cancel
@@ -52,11 +55,12 @@ Plugin architecture — new platforms should be straightforward to add.
 - Slicer print-host target — point PrusaSlicer/OrcaSlicer's "Send to printer" (PrusaLink mode) at PrintWatcher, pinned to one specific printer; "Upload" relays automatically once the printer's online, "Upload and Print" also powers it on first if it's off — no manual step either way
 - Print history enriched with real per-print metadata — material, filament used/cost, layer height, duration vs. estimate, and per-tool breakdown for multi-material prints — parsed directly from the file's own slicer metadata, since none of this is exposed over PrusaLink's API
 
-### Snapmaker U1
+### Snapmaker U1 or other Klipper
 
-In Settings → Add Printer, select **Snapmaker U1 or other Klipper** and enter the printer’s Moonraker URL and API key. Use the printer’s HTTP address if it serves Moonraker, or include port 7125 for the direct API. Use **Test Connection** before saving.
-
-The integration reports print progress, ETA, active tool and bed temperatures, chamber temperature when available, and the active print’s thumbnail. It supports Moonraker print controls and .gcode file management. When Moonraker exposes the U1 built-in camera, SNAP shows its latest image and LIVE refreshes it once per second. An assigned HTTP or RTSP camera takes precedence.
+- Connect through Moonraker — in Settings → Add Printer, select **Snapmaker U1 or other Klipper** and enter the printer’s Moonraker URL and API key. Use the printer’s HTTP address if it serves Moonraker, or include port 7125 for the direct API. Use **Test Connection** before saving.
+- Print progress, ETA, active tool and bed temperatures, chamber temperature when available, and the active print’s thumbnail
+- Moonraker print controls and `.gcode` file management, with upload-only or **Print immediately**
+- U1 built-in camera support when exposed by Moonraker — SNAP shows its latest image and LIVE refreshes it once per second; an assigned HTTP or RTSP camera takes precedence
 
 ## Quick start
 
@@ -163,7 +167,6 @@ PrintWatcher is in early development. If you'd like to contribute:
 
 - Open an issue to discuss before submitting large changes
 - Bug reports with `docker logs` output are especially helpful
-- Plugin implementations for Moonraker/Klipper are welcome
 
 ## License
 

@@ -1264,3 +1264,33 @@ body.camera-focus-open { overflow: hidden; }
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
+
+/* Full printer card view: retain the same card and grid, hide dashboard chrome.
+   Keep below modal dialogs so Files/History and other card controls still work. */
+body.printer-zoom-open { overflow: hidden; }
+body.printer-zoom-open > .container > header,
+body.printer-zoom-open > .container > .connection-banner,
+body.printer-zoom-open #printer-list > :not(.printer-zoomed) { display: none; }
+.printer-card.printer-zoomed {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.printer-zoomed > .printer-header { flex-shrink: 0; }
+.printer-zoomed > .printer-body { flex: 1; min-height: 0; }
+.printer-zoomed .webcam-wrapper:not(.camera-focused) { width: 35%; }
+.printer-zoomed .webcam-container img.webcam-img { object-fit: contain; }
+.printer-zoomed .printer-stats { justify-content: center; }
+.printer-zoomed .stat-box-reading { height: clamp(3rem, 10vh, 6rem); }
+@media (max-width: 768px) {
+    .printer-zoomed > .printer-body { min-height: auto; }
+    .printer-zoomed .webcam-wrapper:not(.camera-focused) { width: 100%; }
+    .printer-zoomed .webcam-wrapper:not(.camera-focused) .webcam-container { height: clamp(200px, 40dvh, 450px); }
+}

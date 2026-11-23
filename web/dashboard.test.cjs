@@ -6,10 +6,18 @@ const vm = require('node:vm');
 function dashboard() {
     const elements = new Map(), classes = new Set(), played = [], fetched = [];
     const element = id => {
-        if (!elements.has(id)) elements.set(id, {hidden: false, textContent: '', setAttribute() {}, appendChild() {}});
+        if (!elements.has(id)) elements.set(id, {hidden: false, textContent: '', setAttribute() {}, appendChild() {}, focus() {}});
         return elements.get(id);
     };
     const wrapper = {classList: {add: v => classes.add(v), remove: v => classes.delete(v)}, querySelector: selector => element(selector.includes('overlay') ? 'overlay-remaining' : 'remaining')};
+    const cards = new Map();
+    const replaceCard = id => {
+        const names = new Set();
+        const card = {names, classList:{add(v){names.add(v);classes.add(v);},remove(v){names.delete(v);classes.delete(v);}},
+            querySelector: () => element(`zoom-${id}`)};
+        cards.set(id,card);return card;
+    };
+    [1,2].forEach(replaceCard);
     const classList = {add: v => classes.add(v), remove: v => classes.delete(v)};
     let now = 100000;
     class Context {
@@ -27,8 +35,14 @@ function dashboard() {
         window: {AudioContext: Context},
         document: {
             body: {classList}, getElementById: element,
-            querySelector: selector => selector.includes('.webcam-wrapper') ? wrapper : {focus() {}},
-            querySelectorAll: selector => selector === '.camera-focused' && classes.has('camera-focused') ? [wrapper] : [],
+            querySelector: selector => {
+                if (selector.includes('.webcam-wrapper')) return wrapper;
+                const zoom=selector.match(/^\[data-printer-zoom="(\d+)"\]$/);
+                if(zoom) return element(`zoom-${zoom[1]}`);
+                const card=selector.match(/^\[data-printer-id="(\d+)"\]$/);
+                return card ? cards.get(Number(card[1])) : {focus() {}};
+            },
+            querySelectorAll: selector => selector === '.camera-focused' && classes.has('camera-focused') ? [wrapper] : selector === '.printer-zoomed' ? [...cards.values()].filter(card=>card.names.has('printer-zoomed')) : [],
             addEventListener() {}, createElement: () => ({setAttribute() {}})
         },
         printers: [1, 2].map(id => ({config: {id, enabled: true, notification_sound: id === 1 ? 'Cuckoo.mp3' : 'RedAlert.mp3'}, status: {state: 'printing', job: {remaining_secs: 600}}})),
@@ -38,8 +52,8 @@ function dashboard() {
     };
     vm.createContext(ctx);
     const app = fs.readFileSync(__dirname + '/app.js', 'utf8');
-    vm.runInContext(app.slice(app.indexOf('// Camera focus uses'), app.indexOf('// Initialize')), ctx);
-    return {ctx, played, fetched, classes, element, advance: n => {now += n;}, pending: id => vm.runInContext(`printerAlerts.get(${id}).pending`, ctx)};
+    vm.runInContext(app.slice(app.indexOf('// Whole-printer zoom'), app.indexOf('// Initialize')), ctx);
+    return {ctx, played, fetched, classes, element, cards, replaceCard, advance: n => {now += n;}, pending: id => vm.runInContext(`printerAlerts.get(${id}).pending`, ctx)};
 }
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -262,4 +276,41 @@ test('unsupported fullscreen stays hidden and rejected requests report failure',
     let notice='';d.ctx.alert=text=>{notice=text;};
     d.ctx.document.documentElement={requestFullscreen(){return Promise.reject(Error('blocked'));}};
     await d.ctx.toggleDashboardFullscreen();assert.match(notice,/unavailable/);
+});
+
+
+test('printer Zoom fills the viewport with the same card and Unzoom restores it', () => {
+    const d=dashboard(), original=d.cards.get(1);
+    d.ctx.togglePrinterZoom(1);
+    assert(d.classes.has('printer-zoom-open'));assert(original.names.has('printer-zoomed'));
+    assert.equal(d.element('zoom-1').textContent,'Unzoom');
+    assert.equal(d.cards.get(1),original);assert.equal(d.fetched.length,0);
+    d.ctx.togglePrinterZoom(1);
+    assert(!d.classes.has('printer-zoom-open'));assert(!original.names.has('printer-zoomed'));
+    assert.equal(d.element('zoom-1').textContent,'Zoom');
+});
+
+test('printer zoom survives a card rebuild and exits if the printer is removed', () => {
+    const d=dashboard();d.ctx.togglePrinterZoom(1);
+    const rebuilt=d.replaceCard(1);d.ctx.refreshPrinterZoom();assert(rebuilt.names.has('printer-zoomed'));
+    assert.equal(d.element('zoom-1').textContent,'Unzoom');
+    d.ctx.printers=d.ctx.printers.filter(p=>p.config.id!==1);d.ctx.refreshPrinterZoom();
+    assert(!d.classes.has('printer-zoom-open'));assert.equal(d.element('zoom-1').textContent,'Zoom');
+});
+
+test('native fullscreen exit also restores the printer zoom view', async () => {
+    const d=dashboard();const root={requestFullscreen(){d.ctx.document.fullscreenElement=root;return Promise.resolve();}};
+    d.ctx.document.documentElement=root;
+    d.ctx.togglePrinterZoom(1);await settle();assert(d.classes.has('printer-zoom-open'));
+    d.ctx.document.fullscreenElement=null;d.ctx.printerZoomFullscreenChanged();
+    assert(!d.classes.has('printer-zoom-open'));assert.equal(d.element('zoom-1').textContent,'Zoom');
+});
+
+test('rejected fullscreen retains full-card zoom and a late request cannot reopen it', async () => {
+    const d=dashboard();d.ctx.document.documentElement={requestFullscreen(){return Promise.reject(Error('unsupported'));}};
+    d.ctx.togglePrinterZoom(1);await settle();assert(d.classes.has('printer-zoom-open'));d.ctx.closePrinterZoom();
+    let resolve;const root={requestFullscreen(){return new Promise(r=>{resolve=r;});}};
+    d.ctx.document.documentElement=root;d.ctx.document.exitFullscreen=()=>{d.ctx.document.fullscreenElement=null;return Promise.resolve();};
+    d.ctx.togglePrinterZoom(1);d.ctx.closePrinterZoom();d.ctx.document.fullscreenElement=root;resolve();await settle();
+    assert.equal(d.ctx.document.fullscreenElement,null);assert(!d.classes.has('printer-zoom-open'));
 });

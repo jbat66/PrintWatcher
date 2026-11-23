@@ -126,6 +126,7 @@ function applyStatusUpdate(printerId, status) {
     }
     updatePowerControls();
     refreshCameraFocus();
+    refreshPrinterZoom();
     renderBrowserAlerts();
 }
 
@@ -575,6 +576,7 @@ function setWebcamMode(printerId, mode) {
     card.outerHTML = renderPrinterCard(printer);
     renderIngestBanners();
     refreshCameraFocus();
+    refreshPrinterZoom();
     renderBrowserAlerts();
 }
 
@@ -712,6 +714,7 @@ function updateDashboard() {
         renderIngestBanners();
     }
     refreshCameraFocus();
+    refreshPrinterZoom();
     renderBrowserAlerts();
 }
 
@@ -722,6 +725,7 @@ function renderMaintenanceCard(printer) {
             <div class="printer-header">
                 <span class="printer-name">${esc(cfg.name)}</span>
                 <span class="printer-state state-maintenance">Maintenance</span>
+                ${printerZoomButton(cfg.id)}
             </div>
             <div class="printer-body">
                 <div class="idle-message" data-field="idle-msg">In maintenance — polling paused</div>
@@ -810,6 +814,7 @@ function renderPrinterCard(printer) {
                 ${controlHTML}
                 ${filesHTML}
                 ${historyHTML}
+                ${printerZoomButton(cfg.id)}
                 <span class="printer-alert" data-alert-printer="${cfg.id}"></span>
             </div>
             <div class="printer-body">
@@ -2358,6 +2363,58 @@ function updateCurrentTime() {
 updateCurrentTime();
 setInterval(updateCurrentTime, 1000);
 
+// Whole-printer zoom reuses the existing card, preserving controls and cameras.
+let zoomedPrinterID = null;
+let printerZoomOwnsFullscreen = false;
+
+function printerZoomButton(id) {
+    const active = zoomedPrinterID === id;
+    return `<button class="btn btn-sm" data-printer-zoom="${id}" aria-pressed="${active}" onclick="event.stopPropagation();togglePrinterZoom(${id})">${active ? 'Unzoom' : 'Zoom'}</button>`;
+}
+
+function refreshPrinterZoom() {
+    if (zoomedPrinterID === null) return;
+    const card = document.querySelector(`[data-printer-id="${zoomedPrinterID}"]`);
+    if (!printers.some(p => p.config.id === zoomedPrinterID) || !card) { closePrinterZoom(); return; }
+    card.classList.add('printer-zoomed');
+    document.body.classList.add('printer-zoom-open');
+    const button = card.querySelector('[data-printer-zoom]');
+    if (button) { button.textContent = 'Unzoom'; button.setAttribute('aria-pressed', 'true'); }
+}
+
+function closePrinterZoom() {
+    const id = zoomedPrinterID;
+    zoomedPrinterID = null;
+    document.querySelectorAll('.printer-zoomed').forEach(card => card.classList.remove('printer-zoomed'));
+    document.body.classList.remove('printer-zoom-open');
+    const button = id === null ? null : document.querySelector(`[data-printer-zoom="${id}"]`);
+    if (button) { button.textContent = 'Zoom'; button.setAttribute('aria-pressed', 'false'); button.focus(); }
+    if (printerZoomOwnsFullscreen) { printerZoomOwnsFullscreen = false; exitCameraFullscreen(); }
+}
+
+function togglePrinterZoom(id) {
+    if (zoomedPrinterID === id) { closePrinterZoom(); return; }
+    if (!printers.some(p => p.config.id === id)) return;
+    closeCameraFocus();
+    closePrinterZoom();
+    zoomedPrinterID = id;
+    refreshPrinterZoom();
+    if (!currentCameraFullscreen() && document.documentElement?.requestFullscreen) {
+        try {
+            const root = document.documentElement;
+            Promise.resolve(root.requestFullscreen()).then(() => {
+                if (zoomedPrinterID === null) { exitCameraFullscreen(); return; }
+                printerZoomOwnsFullscreen = currentCameraFullscreen() === root;
+            }).catch(() => {}); // The card still fills the browser when fullscreen is unavailable.
+        } catch (e) {}
+    }
+}
+
+function printerZoomFullscreenChanged() {
+    if (printerZoomOwnsFullscreen && !currentCameraFullscreen()) closePrinterZoom();
+}
+document.addEventListener('fullscreenchange', printerZoomFullscreenChanged);
+
 // Camera focus uses the existing image element so enlarging it keeps the stream.
 let focusedPrinterID = null;
 let mobileCameraFocus = false;
@@ -2448,6 +2505,7 @@ function toggleCameraFocus(printerId) {
     focusedPrinterID = printerId;
     mobileCameraFocus = !!isMobileCameraDevice();
     refreshCameraFocus();
+    refreshPrinterZoom();
     if (mobileCameraFocus) enterMobileCameraFullscreen();
 }
 
@@ -2491,7 +2549,7 @@ function refreshCameraFocus() {
 }
 
 document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') closeCameraFocus();
+    if (event.key === 'Escape') { closeCameraFocus(); closePrinterZoom(); }
 });
 
 // Browser-local state alerts: establish a baseline without sounding, ignore
@@ -2555,6 +2613,7 @@ function syncPrinterAlerts() {
     }
     printers.forEach(observePrinterAlert);
     refreshCameraFocus();
+    refreshPrinterZoom();
     renderBrowserAlerts();
 }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.11.23.1
+
+- Add Zoom/Unzoom beside History to fill the screen with one printer card, including its camera modes, controls, and status, while hiding the dashboard header and other printers.
+
 ## v2026.11.22.2
 
 - Show an always-visible, bottom-centered remaining-time overlay on enlarged mobile video without reducing the video area.

@@ -172,6 +172,8 @@ AGPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ### Camera focus and browser alerts
 
+Use **Zoom** beside a printer's History button to fill the screen with its complete card, retaining camera mode buttons, printer controls, and status. The app header and other printers are hidden. **Unzoom** or Escape returns to the dashboard. Native fullscreen is requested where supported, with a browser-filling fallback. Files and History dialogs remain available while zoomed.
+
 Use **Full screen** to the left of Upload to display the entire dashboard fullscreen; click **Exit full screen** or press Escape to return. The button is hidden in browsers without a supported fullscreen API.
 
 On desktop, click a LIVE camera to enlarge it. A single line reads “Time Remaining for [printer name]” above the unchanged large time value, with Return to dashboard and sound controls sharing one row below. Click again, press Escape, or use Return to dashboard to restore the normal view. Enter or Space also toggles a keyboard-selected camera.

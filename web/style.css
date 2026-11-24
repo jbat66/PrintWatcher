@@ -266,6 +266,27 @@ header .app-version {
     flex-wrap: wrap;
 }
 
+.printer-diagnostics {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+}
+.diagnostic-results {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+.printer-diagnostics button { flex-shrink: 0; }
+.printer-diagnostics button[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .printer-name {
     font-size: 0.95rem;
     font-weight: 600;

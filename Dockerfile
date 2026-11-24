@@ -13,7 +13,7 @@ RUN CGO_ENABLED=1 go build -mod=readonly -o printwatcher -ldflags="-s -w -X main
 RUN CGO_ENABLED=1 go build -mod=readonly -o backfill-history ./cmd/backfill-history
 
 FROM alpine:3.24
-RUN apk add --no-cache sqlite sqlite-libs ca-certificates ffmpeg
+RUN apk add --no-cache sqlite sqlite-libs ca-certificates ffmpeg iputils-ping
 COPY --from=builder /build/printwatcher /usr/local/bin/
 COPY --from=builder /build/backfill-history /usr/local/bin/
 COPY --from=builder /build/web /usr/local/share/printwatcher/web

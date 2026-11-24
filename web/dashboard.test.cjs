@@ -32,11 +32,12 @@ function dashboard() {
         }
     }
     const ctx = {
-        window: {AudioContext: Context},
+        window: {AudioContext: Context, addEventListener() {}},
         document: {
             body: {classList}, getElementById: element,
             querySelector: selector => {
                 if (selector.includes('.webcam-wrapper')) return wrapper;
+                if (selector.includes('data-diagnostic')) return element(selector);
                 const zoom=selector.match(/^\[data-printer-zoom="(\d+)"\]$/);
                 if(zoom) return element(`zoom-${zoom[1]}`);
                 const card=selector.match(/^\[data-printer-id="(\d+)"\]$/);
@@ -47,12 +48,12 @@ function dashboard() {
         },
         printers: [1, 2].map(id => ({config: {id, enabled: true, notification_sound: id === 1 ? 'Cuckoo.mp3' : 'RedAlert.mp3'}, status: {state: 'printing', job: {remaining_secs: 600}}})),
         getWebcamMode: () => 'live', formatTime: value => `${value}s`,
-        Date: {now: () => now}, setInterval() {},
+        Date: {now: () => now}, setInterval() {}, AbortController, setTimeout() {}, clearTimeout() {},
         fetch: async url => { fetched.push(url); return {ok: true, arrayBuffer: async () => url}; }
     };
     vm.createContext(ctx);
     const app = fs.readFileSync(__dirname + '/app.js', 'utf8');
-    vm.runInContext(app.slice(app.indexOf('// Whole-printer zoom'), app.indexOf('// Initialize')), ctx);
+    vm.runInContext(app.slice(app.indexOf('// Per-printer connection diagnostics'), app.indexOf('// Initialize')), ctx);
     return {ctx, played, fetched, classes, element, cards, replaceCard, advance: n => {now += n;}, pending: id => vm.runInContext(`printerAlerts.get(${id}).pending`, ctx)};
 }
 
@@ -313,4 +314,42 @@ test('rejected fullscreen retains full-card zoom and a late request cannot reope
     d.ctx.document.documentElement=root;d.ctx.document.exitFullscreen=()=>{d.ctx.document.fullscreenElement=null;return Promise.resolve();};
     d.ctx.togglePrinterZoom(1);d.ctx.closePrinterZoom();d.ctx.document.fullscreenElement=root;resolve();await settle();
     assert.equal(d.ctx.document.fullscreenElement,null);assert(!d.classes.has('printer-zoom-open'));
+});
+
+
+test('diagnostics compact format separates loss from successful latency', () => {
+    const d = dashboard();
+    const samples = Array.from({length:8}, (_,i)=>({ms:18+i%3})).concat([{error:'No ping reply'},{error:'Host unreachable'}]);
+    assert.equal(d.ctx.formatDiagnosticSamples('Printer', samples), 'Printer: 18.9 ms avg · 18–20 ms · 2/10 lost');
+    assert.equal(d.ctx.formatDiagnosticSamples('Camera', [{same_host:true}]), 'Camera: Same host');
+    assert.equal(d.ctx.formatDiagnosticSamples('Printer', Array(10).fill({error:'Host unreachable'})), 'Printer: Host unreachable · 10/10 lost');
+});
+
+test('diagnostics repeats ten-sample batches and stops requests independently', async () => {
+    const d = dashboard(), timers = [], requests = [];
+    d.ctx.setTimeout = callback => {timers.push(callback); return timers.length;};
+    d.ctx.fetch = async (url, options) => {requests.push({url,signal:options.signal}); return {ok:true,json:async()=>({printer:{ms:20},camera:{same_host:true}})};};
+    d.ctx.toggleDiagnostics(1); await settle();
+    for(let i=1;i<10;i++){timers.shift()();await settle();}
+    assert.equal(requests.length,10);
+    assert.equal(vm.runInContext('printerDiagnostics.get(1).result',d.ctx),'Printer: 20 ms avg · 20–20 ms | Camera: Same host');
+    timers.shift()();await settle();
+    assert.equal(requests.length,11);
+    d.ctx.toggleDiagnostics(2);await settle();
+    d.ctx.toggleDiagnostics(1);
+    assert(requests[0].signal.aborted);
+    assert(!requests.at(-1).signal.aborted);
+    assert(!vm.runInContext('printerDiagnostics.has(1)',d.ctx));
+    d.ctx.printers=[];d.ctx.refreshDiagnostics();
+    assert(requests.at(-1).signal.aborted);
+});
+
+test('turning diagnostics off ignores late replies and schedules no more pings', async () => {
+    const d = dashboard(); let resolveFetch, scheduled=0;
+    d.ctx.setTimeout=()=>{scheduled++;};
+    d.ctx.fetch=()=>new Promise(resolve=>{resolveFetch=resolve;});
+    d.ctx.toggleDiagnostics(1);d.ctx.toggleDiagnostics(1);
+    resolveFetch({ok:true,json:async()=>({printer:{ms:20}})});await settle();
+    assert.equal(scheduled,0);
+    assert(!vm.runInContext('printerDiagnostics.has(1)',d.ctx));
 });

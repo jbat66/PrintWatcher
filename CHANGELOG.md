@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.23.4
+
+- Add per-printer Diagnostics toggles at the far right of each card, showing continuously updated ten-ping latency batches and packet loss for printer and camera hosts.
+- Include the ping utility in Docker; cancel diagnostics when disabled or the page closes, and keep controls/results available in Zoom mode.
+
 ## v2026.11.23.3
 
 - Highlight remaining-time numbers in soft cyan (#67DDE8) in normal and zoomed printer cards.

@@ -313,6 +313,8 @@ func (h *Handler) handlePrinterByID(w http.ResponseWriter, r *http.Request) {
 			h.controlPrint(w, r, id)
 		case "maintenance":
 			h.handleMaintenance(w, r, id)
+		case "diagnostics":
+			h.getDiagnostics(w, r, id)
 		case "debug":
 			h.getPrusalinkDebug(w, r, id)
 		default:

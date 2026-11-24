@@ -127,6 +127,7 @@ function applyStatusUpdate(printerId, status) {
     updatePowerControls();
     refreshCameraFocus();
     refreshPrinterZoom();
+    refreshDiagnostics();
     renderBrowserAlerts();
 }
 
@@ -577,6 +578,7 @@ function setWebcamMode(printerId, mode) {
     renderIngestBanners();
     refreshCameraFocus();
     refreshPrinterZoom();
+    refreshDiagnostics();
     renderBrowserAlerts();
 }
 
@@ -715,6 +717,7 @@ function updateDashboard() {
     }
     refreshCameraFocus();
     refreshPrinterZoom();
+    refreshDiagnostics();
     renderBrowserAlerts();
 }
 
@@ -726,6 +729,7 @@ function renderMaintenanceCard(printer) {
                 <span class="printer-name">${esc(cfg.name)}</span>
                 <span class="printer-state state-maintenance">Maintenance</span>
                 ${printerZoomButton(cfg.id)}
+                ${printerDiagnosticsControls(cfg.id)}
             </div>
             <div class="printer-body">
                 <div class="idle-message" data-field="idle-msg">In maintenance — polling paused</div>
@@ -816,6 +820,7 @@ function renderPrinterCard(printer) {
                 ${historyHTML}
                 ${printerZoomButton(cfg.id)}
                 <span class="printer-alert" data-alert-printer="${cfg.id}"></span>
+                ${printerDiagnosticsControls(cfg.id)}
             </div>
             <div class="printer-body">
                 ${sectionHidden ? '' : `
@@ -2363,6 +2368,87 @@ function updateCurrentTime() {
 updateCurrentTime();
 setInterval(updateCurrentTime, 1000);
 
+// Per-printer connection diagnostics. Each browser owns its toggles and
+// requests; there is no persistent background ping job on the server.
+const printerDiagnostics = new Map();
+
+function printerDiagnosticsControls(id) {
+    const active = printerDiagnostics.has(id);
+    return `<span class="printer-diagnostics"><span class="diagnostic-results" data-diagnostic-results="${id}" title="ICMP ping from PrintWatcher; does not test the printer API or camera feed"></span><button class="btn btn-sm" data-diagnostics="${id}" aria-pressed="${active}" onclick="event.stopPropagation();toggleDiagnostics(${id})">Diagnostics</button></span>`;
+}
+
+function formatDiagnosticSamples(label, samples) {
+    if (samples.some(s => s.same_host)) return `${label}: Same host`;
+    const values = samples.filter(s => Number.isFinite(s.ms)).map(s => s.ms);
+    const lost = samples.length - values.length;
+    if (!values.length) {
+        const reasons = [...new Set(samples.map(s => s.error).filter(Boolean))];
+        const reason = reasons.length === 1 ? reasons[0] : 'No ping replies';
+        return `${label}: ${reason || 'No ping replies'} · ${lost}/10 lost`;
+    }
+    const ms = n => n.toFixed(1).replace(/\.0$/, '');
+    const avg = values.reduce((a,b) => a+b,0) / values.length;
+    return `${label}: ${ms(avg)} ms avg · ${ms(Math.min(...values))}–${ms(Math.max(...values))} ms${lost ? ` · ${lost}/10 lost` : ''}`;
+}
+
+function renderDiagnostics(id, record) {
+    const button = document.querySelector(`[data-diagnostics="${id}"]`);
+    if (button) button.setAttribute('aria-pressed', String(!!record));
+    const result = document.querySelector(`[data-diagnostic-results="${id}"]`);
+    if (result) result.textContent = record ? (record.result || `Printer: Testing… ${record.printer.length}/10${record.camera.length ? ' | Camera: Testing… '+record.camera.length+'/10' : ''}`) : '';
+}
+
+function stopDiagnostics(id) {
+    const record = printerDiagnostics.get(id);
+    printerDiagnostics.delete(id);
+    if (record) { clearTimeout(record.timer); record.controller.abort(); }
+    renderDiagnostics(id, null);
+}
+
+function refreshDiagnostics() {
+    for (const [id, record] of printerDiagnostics) {
+        if (!printers.some(p => p.config.id === id)) stopDiagnostics(id);
+        else renderDiagnostics(id, record);
+    }
+}
+
+function toggleDiagnostics(id) {
+    if (printerDiagnostics.has(id)) { stopDiagnostics(id); return; }
+    if (!printers.some(p => p.config.id === id)) return;
+    const record = {controller: new AbortController(), timer: null, printer: [], camera: [], result: ''};
+    printerDiagnostics.set(id, record);
+    renderDiagnostics(id, record);
+    runDiagnosticSample(id, record);
+}
+
+async function runDiagnosticSample(id, record) {
+    const started = Date.now();
+    try {
+        const response = await fetch(`/api/printers/${id}/diagnostics`, {signal: record.controller.signal, cache: 'no-store'});
+        if (!response.ok) throw new Error('Diagnostics unavailable; retrying…');
+        const data = await response.json();
+        if (printerDiagnostics.get(id) !== record) return;
+        record.printer.push(data.printer);
+        if (data.camera) record.camera.push(data.camera);
+        if (record.printer.length === 10) {
+            record.result = formatDiagnosticSamples('Printer', record.printer);
+            if (record.camera.length) record.result += ' | '+formatDiagnosticSamples('Camera', record.camera);
+            record.printer = []; record.camera = [];
+        }
+    } catch (error) {
+        if (printerDiagnostics.get(id) !== record) return;
+        record.result = 'Diagnostics unavailable; retrying…';
+        record.printer = []; record.camera = [];
+    }
+    if (printerDiagnostics.get(id) !== record) return;
+    renderDiagnostics(id, record);
+    // Keep sampling continuously, roughly once per second, without overlap.
+    record.timer = setTimeout(() => runDiagnosticSample(id, record), Math.max(100, 1000-(Date.now()-started)));
+}
+window.addEventListener('pagehide', () => {
+    for (const id of printerDiagnostics.keys()) stopDiagnostics(id);
+});
+
 // Whole-printer zoom reuses the existing card, preserving controls and cameras.
 let zoomedPrinterID = null;
 let printerZoomOwnsFullscreen = false;
@@ -2399,6 +2485,7 @@ function togglePrinterZoom(id) {
     closePrinterZoom();
     zoomedPrinterID = id;
     refreshPrinterZoom();
+    refreshDiagnostics();
     if (!currentCameraFullscreen() && document.documentElement?.requestFullscreen) {
         try {
             const root = document.documentElement;
@@ -2506,6 +2593,7 @@ function toggleCameraFocus(printerId) {
     mobileCameraFocus = !!isMobileCameraDevice();
     refreshCameraFocus();
     refreshPrinterZoom();
+    refreshDiagnostics();
     if (mobileCameraFocus) enterMobileCameraFullscreen();
 }
 
@@ -2614,6 +2702,7 @@ function syncPrinterAlerts() {
     printers.forEach(observePrinterAlert);
     refreshCameraFocus();
     refreshPrinterZoom();
+    refreshDiagnostics();
     renderBrowserAlerts();
 }
 

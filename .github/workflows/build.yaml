@@ -75,6 +75,7 @@ jobs:
           EXPECTED_VERSION: ${{ steps.version.outputs.value }}
         run: |
           docker pull "$IMAGE"
+          docker run --rm --entrypoint ping "$IMAGE" -n -c 1 -W 1 127.0.0.1
           docker run --rm --entrypoint ffmpeg "$IMAGE" -version
           docker run --rm --entrypoint ffmpeg "$IMAGE" -hide_banner -h muxer=mpjpeg 2>&1 | grep boundary_tag
           docker run -d --name printwatcher-smoke -p 127.0.0.1:18080:8080 "$IMAGE"

@@ -899,7 +899,7 @@ function renderPrintingStats(cfg, status, hasRealCam) {
         <div class="stat-rows">
             <div class="stat-grid stat-grid-auto">
                 <div class="stat-box stat-box-reading"><div class="stat-label">Elapsed</div><div class="stat-value" data-field="elapsed">${elapsed}</div></div>
-                <div class="stat-box stat-box-reading"><div class="stat-label">Remaining</div><div class="stat-value" data-field="remaining">${remaining}</div></div>
+                <div class="stat-box stat-box-reading stat-box-remaining"><div class="stat-label">Remaining</div><div class="stat-value" data-field="remaining">${remaining}</div></div>
                 <div class="stat-box stat-box-reading"><div class="stat-label">ETA</div><div class="stat-value" data-field="eta">${eta}</div></div>
                 ${layerCell}
             </div>
@@ -2386,7 +2386,7 @@ function formatDiagnosticSamples(label, samples) {
         const reason = reasons.length === 1 ? reasons[0] : 'No ping replies';
         return `${label}: ${reason || 'No ping replies'} · ${lost}/10 lost`;
     }
-    const ms = n => n.toFixed(1).replace(/\.0$/, '');
+    const ms = n => String(Math.round(n));
     const avg = values.reduce((a,b) => a+b,0) / values.length;
     return `${label}: ${ms(avg)} ms avg · ${ms(Math.min(...values))}–${ms(Math.max(...values))} ms${lost ? ` · ${lost}/10 lost` : ''}`;
 }

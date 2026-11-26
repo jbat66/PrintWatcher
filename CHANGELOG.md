@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.11.25.1
+
+- Highlight the Remaining block with a cyan background, black countdown, and dark charcoal label in normal and zoomed cards.
+- Round diagnostic average, low, and high ping times to whole milliseconds.
+
 ## v2026.11.23.4
 
 - Add per-printer Diagnostics toggles at the far right of each card, showing continuously updated ten-ping latency batches and packet loss for printer and camera hosts.

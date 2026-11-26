@@ -320,7 +320,8 @@ test('rejected fullscreen retains full-card zoom and a late request cannot reope
 test('diagnostics compact format separates loss from successful latency', () => {
     const d = dashboard();
     const samples = Array.from({length:8}, (_,i)=>({ms:18+i%3})).concat([{error:'No ping reply'},{error:'Host unreachable'}]);
-    assert.equal(d.ctx.formatDiagnosticSamples('Printer', samples), 'Printer: 18.9 ms avg · 18–20 ms · 2/10 lost');
+    assert.equal(d.ctx.formatDiagnosticSamples('Printer', samples), 'Printer: 19 ms avg · 18–20 ms · 2/10 lost');
+    assert.equal(d.ctx.formatDiagnosticSamples('Camera', [{ms:10.4},{ms:15.6}]), 'Camera: 13 ms avg · 10–16 ms');
     assert.equal(d.ctx.formatDiagnosticSamples('Camera', [{same_host:true}]), 'Camera: Same host');
     assert.equal(d.ctx.formatDiagnosticSamples('Printer', Array(10).fill({error:'Host unreachable'})), 'Printer: Host unreachable · 10/10 lost');
 });
